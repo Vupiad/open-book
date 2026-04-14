@@ -2,6 +2,9 @@ package main
 
 import (
 	"embed"
+	"net/http"
+	"os"
+	"strings"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -11,19 +14,54 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+type FileLoader struct {
+	http.Handler
+	app *App
+}
+
+func NewFileLoader(app *App) *FileLoader {
+	return &FileLoader{app: app}
+}
+
+func (h *FileLoader) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+	if strings.HasPrefix(req.URL.Path, "/pdf/") {
+		bookId := strings.TrimPrefix(req.URL.Path, "/pdf/")
+		book, err := h.app.GetBook(bookId)
+		if err != nil {
+			res.WriteHeader(http.StatusNotFound)
+			res.Write([]byte(err.Error()))
+			return
+		}
+
+		fileData, err := os.ReadFile(book.Path)
+		if err != nil {
+			res.WriteHeader(http.StatusNotFound)
+			res.Write([]byte(err.Error()))
+			return
+		}
+
+		res.Header().Set("Content-Type", "application/pdf")
+		res.WriteHeader(http.StatusOK)
+		res.Write(fileData)
+		return
+	}
+	res.WriteHeader(http.StatusNotFound)
+}
+
 func main() {
 	// Create an instance of the app structure
 	app := NewApp()
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:  "my-book-shelf",
-		Width:  1024,
-		Height: 768,
+		Title:  "The Archive",
+		Width:  1280,
+		Height: 800,
 		AssetServer: &assetserver.Options{
-			Assets: assets,
+			Assets:  assets,
+			Handler: NewFileLoader(app),
 		},
-		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
+		BackgroundColour: &options.RGBA{R: 247, G: 248, B: 250, A: 1},
 		OnStartup:        app.startup,
 		Bind: []interface{}{
 			app,
