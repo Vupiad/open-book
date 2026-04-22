@@ -26,8 +26,8 @@ This is a fully vibe coding project, the code is a mess, but it works.
 ## About the Project
 
 This is a PDF reader application that allows you to read PDFs and keep track of your reading progress.
-![alt text](images/main-app-ui.png)
-![alt text](images/reader-view.png)
+![main app UI](image/main-app-ui.png)
+![reader view](image/reader-view.png)
 ## Features
 
 - Read PDFs
