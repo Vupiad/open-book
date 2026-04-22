@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -27,11 +28,25 @@ type Book struct {
 	Cover       string `json:"cover"`
 }
 
+type Goal struct {
+	ID        string `json:"id"`
+	Title     string `json:"title"`
+	Completed bool   `json:"completed"`
+	DayIndex  int    `json:"dayIndex"` // -1 for none
+	Time      string `json:"time"`
+}
+
+type GoalsData struct {
+	WeekStart time.Time `json:"weekStart"`
+	Goals     []Goal    `json:"goals"`
+}
+
 // App struct
 type App struct {
 	ctx        context.Context
 	books      []Book
 	categories []string
+	goalsData  GoalsData
 	dataPath   string
 }
 
@@ -40,6 +55,9 @@ func NewApp() *App {
 	return &App{
 		books:      make([]Book, 0),
 		categories: make([]string, 0),
+		goalsData: GoalsData{
+			Goals: make([]Goal, 0),
+		},
 	}
 }
 
@@ -55,6 +73,7 @@ func (a *App) startup(ctx context.Context) {
 		os.MkdirAll(a.dataPath, 0755)
 		a.loadCategories()
 		a.loadBooks()
+		a.loadGoals()
 	}
 }
 
@@ -141,6 +160,125 @@ func (a *App) saveBooks() {
 	if err == nil {
 		os.WriteFile(dbPath, data, 0644)
 	}
+}
+
+func (a *App) loadGoals() {
+	if a.dataPath == "" {
+		return
+	}
+	dbPath := filepath.Join(a.dataPath, "goals.json")
+	data, err := os.ReadFile(dbPath)
+	if err == nil {
+		json.Unmarshal(data, &a.goalsData)
+		// Set missing DayIndex to -1 for existing goals (which unmarshal as 0) if they don't have Time
+		for i := range a.goalsData.Goals {
+			if a.goalsData.Goals[i].Time == "" && a.goalsData.Goals[i].DayIndex == 0 {
+				a.goalsData.Goals[i].DayIndex = -1
+			}
+		}
+	}
+
+	// Check if we need to reset goals for a new week
+	now := time.Now()
+	// Get start of current week (Monday)
+	offset := int(time.Monday - now.Weekday())
+	if offset > 0 {
+		offset = -6
+	}
+	currentWeekStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, offset)
+
+	if a.goalsData.WeekStart.Before(currentWeekStart) {
+		// New week, reset goals
+		a.goalsData.WeekStart = currentWeekStart
+		a.goalsData.Goals = make([]Goal, 0)
+		a.saveGoals()
+	}
+}
+
+func (a *App) saveGoals() {
+	if a.dataPath == "" {
+		return
+	}
+	dbPath := filepath.Join(a.dataPath, "goals.json")
+	data, err := json.MarshalIndent(a.goalsData, "", "  ")
+	if err == nil {
+		os.WriteFile(dbPath, data, 0644)
+	}
+}
+
+// GetGoals returns the list of all goals
+func (a *App) GetGoals() []Goal {
+	return a.goalsData.Goals
+}
+
+func (a *App) AddGoal(title string) []Goal {
+	goal := Goal{
+		ID:        uuid.New().String(),
+		Title:     title,
+		Completed: false,
+		DayIndex:  -1,
+	}
+	a.goalsData.Goals = append(a.goalsData.Goals, goal)
+	a.saveGoals()
+	return a.goalsData.Goals
+}
+
+func (a *App) AddCalendarGoal(title string, dayIndex int, time string) []Goal {
+	goal := Goal{
+		ID:        uuid.New().String(),
+		Title:     title,
+		Completed: false,
+		DayIndex:  dayIndex,
+		Time:      time,
+	}
+	a.goalsData.Goals = append(a.goalsData.Goals, goal)
+	a.saveGoals()
+	return a.goalsData.Goals
+}
+
+func (a *App) UpdateGoalDayTime(id string, dayIndex int, time string) []Goal {
+	for i, g := range a.goalsData.Goals {
+		if g.ID == id {
+			a.goalsData.Goals[i].DayIndex = dayIndex
+			a.goalsData.Goals[i].Time = time
+			a.saveGoals()
+			break
+		}
+	}
+	return a.goalsData.Goals
+}
+
+func (a *App) UpdateGoal(id string, title string) []Goal {
+	for i, g := range a.goalsData.Goals {
+		if g.ID == id {
+			a.goalsData.Goals[i].Title = title
+			a.saveGoals()
+			break
+		}
+	}
+	return a.goalsData.Goals
+}
+
+func (a *App) ToggleGoal(id string) []Goal {
+	for i, g := range a.goalsData.Goals {
+		if g.ID == id {
+			a.goalsData.Goals[i].Completed = !g.Completed
+			a.saveGoals()
+			break
+		}
+	}
+	return a.goalsData.Goals
+}
+
+func (a *App) DeleteGoal(id string) []Goal {
+	for i, g := range a.goalsData.Goals {
+		if g.ID == id {
+			a.goalsData.Goals = append(a.goalsData.Goals[:i], a.goalsData.Goals[i+1:]...)
+			a.saveGoals()
+			break
+		}
+	}
+	return a.goalsData.Goals
 }
 
 // GetBooks returns the list of all books

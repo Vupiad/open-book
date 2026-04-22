@@ -140,6 +140,20 @@
   color: var(--text-secondary);
 }
 
+/* Objectives / Goals */
+.objective-item .goal-delete-btn {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.objective-item:hover .goal-delete-btn {
+  opacity: 0.5;
+}
+
+.objective-item .goal-delete-btn:hover {
+  opacity: 1 !important;
+}
+
 /* Main Content */
 .main-content {
   flex: 1;

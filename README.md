@@ -17,3 +17,29 @@ to this in your browser, and you can call your Go code from devtools.
 ## Building
 
 To build a redistributable, production mode package, use `wails build`.
+
+
+## NOTE
+
+This is a fully vibe coding project, the code is a mess, but it works.
+
+## About the Project
+
+This is a PDF reader application that allows you to read PDFs and keep track of your reading progress.
+![alt text](images/main-app-ui.png)
+![alt text](images/reader-view.png)
+## Features
+
+- Read PDFs
+- Keep track of reading progress
+- Set goals and track progress
+- Translate text
+
+## Tech Stack
+
+- Wails
+- React
+- TypeScript
+- Go
+
+

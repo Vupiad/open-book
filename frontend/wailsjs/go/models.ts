@@ -28,6 +28,26 @@ export namespace main {
 	        this.cover = source["cover"];
 	    }
 	}
+	export class Goal {
+	    id: string;
+	    title: string;
+	    completed: boolean;
+	    dayIndex: number;
+	    time: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Goal(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.title = source["title"];
+	        this.completed = source["completed"];
+	        this.dayIndex = source["dayIndex"];
+	        this.time = source["time"];
+	    }
+	}
 
 }
 
