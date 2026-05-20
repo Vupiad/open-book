@@ -1,5 +1,5 @@
 import type { RefObject, UIEvent } from 'react';
-import { Menu, ChevronLeft, Languages, ArrowDown, Sparkles, X } from 'lucide-react';
+import { Menu, ChevronLeft, Languages, ArrowDown, Sparkles, X, Volume2 } from 'lucide-react';
 import { Document, Page } from '../pdf';
 import type { Book } from '../types';
 
@@ -22,6 +22,9 @@ type ReaderViewProps = {
   onZoomOut: () => void;
   onZoomIn: () => void;
   onSetTargetLang: (lang: string) => void;
+  onSourceTextChange: (text: string) => void;
+  onSpeakSource: () => void;
+  onSpeakTarget: () => void;
 };
 
 export default function ReaderView({
@@ -42,8 +45,23 @@ export default function ReaderView({
   onToggleTranslator,
   onZoomOut,
   onZoomIn,
-  onSetTargetLang
+  onSetTargetLang,
+  onSourceTextChange,
+  onSpeakSource,
+  onSpeakTarget
 }: ReaderViewProps) {
+  const speakerButtonStyle = {
+    border: '1px solid var(--card-border)',
+    background: 'var(--card-bg)',
+    color: 'var(--text-secondary)',
+    borderRadius: '8px',
+    padding: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer'
+  } as const;
+
   return (
     <div className="reader-view">
       <header className="reader-topbar">
@@ -184,8 +202,21 @@ export default function ReaderView({
 
             <div className="trans-content" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '16px' }}>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '10px', letterSpacing: '0.08em' }}>Source Text</span>
-                <div
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Source Text</span>
+                  <button
+                    onClick={onSpeakSource}
+                    style={{ ...speakerButtonStyle, opacity: selectedText ? 1 : 0.5, cursor: selectedText ? 'pointer' : 'not-allowed' }}
+                    title="Speak source text"
+                    disabled={!selectedText}
+                  >
+                    <Volume2 size={14} />
+                  </button>
+                </div>
+                <textarea
+                  value={selectedText}
+                  onChange={(e) => onSourceTextChange(e.target.value)}
+                  placeholder="Highlight text in the document to translate it instantly..."
                   style={{
                     padding: '16px',
                     borderRadius: '16px',
@@ -194,13 +225,13 @@ export default function ReaderView({
                     fontSize: '14.5px',
                     lineHeight: '1.6',
                     color: 'var(--text-primary)',
-                    minHeight: '80px',
+                    minHeight: '120px',
                     boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)',
-                    wordBreak: 'break-word'
+                    wordBreak: 'break-word',
+                    width: '100%',
+                    resize: 'vertical'
                   }}
-                >
-                  {selectedText || <span style={{ color: 'var(--text-secondary)', fontStyle: 'italic' }}>Highlight text in the document to translate it instantly...</span>}
-                </div>
+                />
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'center', color: 'var(--text-secondary)', padding: '4px 0' }}>
@@ -212,7 +243,17 @@ export default function ReaderView({
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                   <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Translation Result</span>
-                  {isTranslating && <div className="spinner-small" style={{ width: '12px', height: '12px', border: '2px solid var(--accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      onClick={onSpeakTarget}
+                      style={{ ...speakerButtonStyle, opacity: translatedText ? 1 : 0.5, cursor: translatedText ? 'pointer' : 'not-allowed' }}
+                      title="Speak translated text"
+                      disabled={!translatedText}
+                    >
+                      <Volume2 size={14} />
+                    </button>
+                    {isTranslating && <div className="spinner-small" style={{ width: '12px', height: '12px', border: '2px solid var(--accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>}
+                  </div>
                 </div>
                 <div
                   style={{

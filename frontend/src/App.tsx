@@ -33,7 +33,7 @@ export default function App() {
   const [isTranslatorVisible, setIsTranslatorVisible] = useState(false);
   const [selectedText, setSelectedText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
-  const [targetLang, setTargetLang] = useState('English');
+  const [targetLang, setTargetLang] = useState('Vietnamese');
   const [isTranslating, setIsTranslating] = useState(false);
 
   const [goals, setGoals] = useState<Goal[]>([]);
@@ -63,6 +63,7 @@ export default function App() {
 
   const scrollPageRef = useRef(1);
   const scrollTimeout = useRef<any>(null);
+  const translateTimeoutRef = useRef<number | null>(null);
   const readerContainerRef = useRef<HTMLDivElement>(null);
   const coverCache = useRef<Map<string, string>>(new Map());
 
@@ -289,21 +290,53 @@ export default function App() {
     };
   }, []);
 
+  const scheduleTranslation = (text: string, lang: string) => {
+    if (!text.trim()) {
+      setTranslatedText('');
+      return;
+    }
+    if (translateTimeoutRef.current) {
+      window.clearTimeout(translateTimeoutRef.current);
+    }
+    translateTimeoutRef.current = window.setTimeout(() => {
+      performTranslation(text, lang);
+    }, 400);
+  };
+
+  const isSelectionInReader = (node: Node | null) => {
+    if (!node || !readerContainerRef.current) return false;
+    const element = node instanceof HTMLElement ? node : node.parentElement;
+    return Boolean(element && readerContainerRef.current.contains(element));
+  };
+
   useEffect(() => {
     const handleMouseUp = () => {
       const selection = window.getSelection();
       const text = selection?.toString().trim();
-      if (text) {
-        setSelectedText(text);
-        if (isTranslatorVisible) {
-          performTranslation(text, targetLang);
-        }
+      if (!text) return;
+      const inReader = isSelectionInReader(selection?.anchorNode || null) || isSelectionInReader(selection?.focusNode || null);
+      if (!inReader) return;
+      setSelectedText(text);
+      if (isTranslatorVisible) {
+        scheduleTranslation(text, targetLang);
       }
     };
 
     document.addEventListener('mouseup', handleMouseUp);
     return () => document.removeEventListener('mouseup', handleMouseUp);
   }, [isTranslatorVisible, targetLang]);
+
+  useEffect(() => {
+    if (isTranslatorVisible && selectedText.trim()) {
+      scheduleTranslation(selectedText, targetLang);
+    }
+  }, [isTranslatorVisible, selectedText, targetLang]);
+
+  useEffect(() => () => {
+    if (translateTimeoutRef.current) {
+      window.clearTimeout(translateTimeoutRef.current);
+    }
+  }, []);
 
   const performTranslation = async (text: string, lang: string) => {
     if (!text) return;
@@ -315,6 +348,34 @@ export default function App() {
       setTranslatedText('Error: Translation failed.');
     } finally {
       setIsTranslating(false);
+    }
+  };
+
+  const speechLangMap: Record<string, string> = {
+    English: 'en-US',
+    Vietnamese: 'vi-VN',
+    French: 'fr-FR',
+    Japanese: 'ja-JP',
+    Chinese: 'zh-CN'
+  };
+
+  const speakText = (text: string, lang?: string) => {
+    const trimmed = text.trim();
+    if (!trimmed || typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(trimmed);
+    if (lang) {
+      utterance.lang = lang;
+    }
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleSourceTextChange = (text: string) => {
+    setSelectedText(text);
+    if (isTranslatorVisible) {
+      scheduleTranslation(text, targetLang);
     }
   };
 
@@ -391,30 +452,33 @@ export default function App() {
             />
           )
         ) : (
-          <ReaderView
-            readingBook={readingBook}
-            numPages={numPages}
-            currentPage={currentPage}
-            zoom={zoom}
-            isTranslatorVisible={isTranslatorVisible}
-            selectedText={selectedText}
-            translatedText={translatedText}
-            targetLang={targetLang}
-            isTranslating={isTranslating}
-            readerContainerRef={readerContainerRef}
-            onScroll={handleScroll}
-            onDocumentLoadSuccess={onDocumentLoadSuccess}
-            onBack={() => {
-              setReadingBook(null);
-              setNumPages(null);
-              setIsSidebarVisible(true);
-            }}
-            onToggleSidebar={() => setIsSidebarVisible(prev => !prev)}
-            onToggleTranslator={() => setIsTranslatorVisible(prev => !prev)}
-            onZoomOut={() => updateZoom(Math.max(0.2, zoom / 1.25))}
-            onZoomIn={() => updateZoom(Math.min(4, zoom * 1.25))}
-            onSetTargetLang={setTargetLang}
-          />
+            <ReaderView
+              readingBook={readingBook}
+              numPages={numPages}
+              currentPage={currentPage}
+              zoom={zoom}
+              isTranslatorVisible={isTranslatorVisible}
+              selectedText={selectedText}
+              translatedText={translatedText}
+              targetLang={targetLang}
+              isTranslating={isTranslating}
+              readerContainerRef={readerContainerRef}
+              onScroll={handleScroll}
+              onDocumentLoadSuccess={onDocumentLoadSuccess}
+              onBack={() => {
+                setReadingBook(null);
+                setNumPages(null);
+                setIsSidebarVisible(true);
+              }}
+              onToggleSidebar={() => setIsSidebarVisible(prev => !prev)}
+              onToggleTranslator={() => setIsTranslatorVisible(prev => !prev)}
+              onZoomOut={() => updateZoom(Math.max(0.2, zoom / 1.25))}
+              onZoomIn={() => updateZoom(Math.min(4, zoom * 1.25))}
+              onSetTargetLang={setTargetLang}
+              onSourceTextChange={handleSourceTextChange}
+              onSpeakSource={() => speakText(selectedText, navigator.language)}
+              onSpeakTarget={() => speakText(translatedText, speechLangMap[targetLang] ?? navigator.language)}
+            />
         )}
       </main>
     </div>
