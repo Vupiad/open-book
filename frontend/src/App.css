@@ -501,11 +501,13 @@
 
 .react-pdf__Page canvas {
   border-radius: 4px;
+  display: block;
 }
 
 /* Ensure PDF links and annotations work */
 .react-pdf__Page {
   position: relative !important;
+  line-height: 0;
 }
 
 .react-pdf__Page__annotations {
@@ -514,15 +516,19 @@
   left: 0 !important;
   width: 100% !important;
   height: 100% !important;
-  z-index: 2 !important;
+  z-index: 3 !important;
+  pointer-events: none;
 }
 
 .react-pdf__Page__annotations :link {
   cursor: pointer !important;
+  pointer-events: auto;
 }
 
 .react-pdf__Page__textContent {
-  z-index: 1 !important;
+  z-index: 2 !important;
+  pointer-events: auto;
+  user-select: text;
 }
 
 
