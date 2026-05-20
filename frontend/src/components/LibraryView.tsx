@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
-import { Plus, Search, Filter, Bell, X } from 'lucide-react';
+import { Plus, Search, Filter, Bell, X, Trash2 } from 'lucide-react';
 import { Document, Page } from '../pdf';
 import type { Book } from '../types';
 
@@ -15,6 +15,7 @@ type LibraryViewProps = {
   onAddCategory: (category: string) => Promise<void>;
   onDeleteCategory: (category: string) => Promise<void>;
   onAddBook: () => void;
+  onDeleteBook: (bookId: string) => Promise<void>;
   onOpenBook: (book: Book) => void;
   onSetBookCategory: (bookId: string, category: string) => Promise<void>;
   getBookCover: (book: Book) => string | undefined;
@@ -35,6 +36,7 @@ export default function LibraryView({
   onAddCategory,
   onDeleteCategory,
   onAddBook,
+  onDeleteBook,
   onOpenBook,
   onSetBookCategory,
   getBookCover,
@@ -155,6 +157,18 @@ export default function LibraryView({
           {visibleBooks.map((book) => (
             <div key={book.id} className="book-card" onClick={() => onOpenBook(book)}>
               <div className="book-cover-wrapper">
+                <button
+                  className="book-delete-btn"
+                  title="Delete book"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (confirm(`Delete "${book.title}"?`)) {
+                      await onDeleteBook(book.id);
+                    }
+                  }}
+                >
+                  <Trash2 size={14} />
+                </button>
                 {getBookCover(book) ? (
                   <img
                     src={getBookCover(book)}

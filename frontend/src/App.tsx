@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, type UIEvent } from 'react';
-import { GetBooks, SelectAndAddBook, UpdateProgress, GetCategories, AddCategory, SetBookCategory, SaveCoverData, DeleteCategory, Translate, GetGoals, AddGoal, UpdateGoal, DeleteGoal, ToggleGoal, UpdateGoalDayTime, AddCalendarGoal } from '../wailsjs/go/main/App';
+import { GetBooks, SelectAndAddBook, UpdateProgress, GetCategories, AddCategory, SetBookCategory, SaveCoverData, DeleteCategory, DeleteBook, Translate, GetGoals, AddGoal, UpdateGoal, DeleteGoal, ToggleGoal, UpdateGoalDayTime, AddCalendarGoal } from '../wailsjs/go/main/App';
 import type { Book, Goal } from './types';
 import Sidebar from './components/Sidebar';
 import SettingsView from './components/SettingsView';
@@ -10,6 +10,9 @@ import { getWeekStart, getWeekDays, formatMonthYear, formatWeekStart } from './u
 import './App.css';
 
 type ActiveTab = 'library' | 'planner' | 'settings';
+
+const baseCategories = ['Non-fiction', 'Fiction', 'Research', 'Education'];
+const baseCategorySet = new Set(baseCategories);
 
 export default function App() {
   const [books, setBooks] = useState<Book[]>([]);
@@ -45,6 +48,18 @@ export default function App() {
   const currentDays = useMemo(() => getWeekDays(weekStart), [weekStart]);
   const currentMonthYear = useMemo(() => formatMonthYear(weekStart), [weekStart]);
   const currentWeekFormatted = useMemo(() => formatWeekStart(weekStart), [weekStart]);
+  const categoryOptions = useMemo(() => {
+    const customCategories = new Set<string>();
+    categories.forEach(cat => customCategories.add(cat));
+    books.forEach(book => {
+      if (book.category) {
+        customCategories.add(book.category);
+      }
+    });
+    const customList = Array.from(customCategories).filter(cat => cat && !baseCategorySet.has(cat));
+    customList.sort((a, b) => a.localeCompare(b));
+    return [...baseCategories, ...customList];
+  }, [books, categories]);
 
   const scrollPageRef = useRef(1);
   const scrollTimeout = useRef<any>(null);
@@ -124,6 +139,17 @@ export default function App() {
       setActiveCategory('All Works');
     }
     await fetchBooks();
+  };
+
+  const handleDeleteBook = async (bookId: string) => {
+    await DeleteBook(bookId);
+    coverCache.current.delete(bookId);
+    setBooks(prev => prev.filter(b => b.id !== bookId));
+    if (readingBook?.id === bookId) {
+      setReadingBook(null);
+      setNumPages(null);
+      setIsSidebarVisible(true);
+    }
   };
 
   const getBookCover = (book: Book) => book.cover || coverCache.current.get(book.id);
@@ -347,7 +373,7 @@ export default function App() {
           ) : (
             <LibraryView
               books={books}
-              categories={categories}
+              categories={categoryOptions}
               activeCategory={activeCategory}
               isAddingCategory={isAddingCategory}
               newCategoryName={newCategoryName}
@@ -356,6 +382,7 @@ export default function App() {
               onSelectCategory={setActiveCategory}
               onAddCategory={handleAddCategory}
               onDeleteCategory={handleDeleteCategory}
+              onDeleteBook={handleDeleteBook}
               onAddBook={handleAddBook}
               onOpenBook={openBook}
               onSetBookCategory={handleSetBookCategory}
