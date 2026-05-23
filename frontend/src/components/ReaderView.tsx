@@ -1,13 +1,17 @@
-import type { RefObject, UIEvent } from 'react';
-import { Menu, ChevronLeft, Languages, ArrowDown, Sparkles, X, Volume2 } from 'lucide-react';
+import { useState, type RefObject, type UIEvent, type ComponentProps } from 'react';
+import { Menu, ChevronLeft, Languages, ArrowDown, Sparkles, X, Volume2, List } from 'lucide-react';
 import { Document, Page } from '../pdf';
-import type { Book } from '../types';
+import type { Book, OutlineEntry } from '../types';
+
+type OnDocumentLoadSuccess = NonNullable<ComponentProps<typeof Document>['onLoadSuccess']>;
 
 type ReaderViewProps = {
   readingBook: Book;
   numPages: number | null;
   currentPage: number;
   zoom: number;
+  outline: OutlineEntry[];
+  isOutlineVisible: boolean;
   isTranslatorVisible: boolean;
   selectedText: string;
   translatedText: string;
@@ -15,9 +19,11 @@ type ReaderViewProps = {
   isTranslating: boolean;
   readerContainerRef: RefObject<HTMLDivElement>;
   onScroll: (event: UIEvent<HTMLDivElement>) => void;
-  onDocumentLoadSuccess: (payload: { numPages: number }) => void;
+  onDocumentLoadSuccess: OnDocumentLoadSuccess;
+  onOutlineJump: (pageNumber: number) => void;
   onBack: () => void;
   onToggleSidebar: () => void;
+  onToggleOutline: () => void;
   onToggleTranslator: () => void;
   onZoomOut: () => void;
   onZoomIn: () => void;
@@ -32,6 +38,8 @@ export default function ReaderView({
   numPages,
   currentPage,
   zoom,
+  outline,
+  isOutlineVisible,
   isTranslatorVisible,
   selectedText,
   translatedText,
@@ -40,8 +48,10 @@ export default function ReaderView({
   readerContainerRef,
   onScroll,
   onDocumentLoadSuccess,
+  onOutlineJump,
   onBack,
   onToggleSidebar,
+  onToggleOutline,
   onToggleTranslator,
   onZoomOut,
   onZoomIn,
@@ -50,6 +60,7 @@ export default function ReaderView({
   onSpeakSource,
   onSpeakTarget
 }: ReaderViewProps) {
+  const [expandedOutline, setExpandedOutline] = useState<Set<string>>(() => new Set());
   const speakerButtonStyle = {
     border: '1px solid var(--card-border)',
     background: 'var(--card-bg)',
@@ -62,11 +73,69 @@ export default function ReaderView({
     cursor: 'pointer'
   } as const;
 
+  const toggleOutlineItem = (key: string) => {
+    setExpandedOutline((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const renderOutlineItems = (items: OutlineEntry[], path: number[] = []) => (
+    items.map((item, index) => {
+      const itemPath = [...path, index];
+      const key = itemPath.join('.');
+      const hasChildren = item.items.length > 0;
+      const isExpanded = expandedOutline.has(key);
+      const isActive = item.pageNumber === currentPage;
+
+      return (
+        <div key={key} className="outline-item" style={{ paddingLeft: `${path.length * 14}px` }}>
+          <div className={`outline-button-row ${isActive ? 'active' : ''}`}>
+            {hasChildren ? (
+              <button
+                className="outline-caret-btn"
+                onClick={() => toggleOutlineItem(key)}
+                title={isExpanded ? 'Collapse' : 'Expand'}
+              >
+                <span className="outline-caret">{isExpanded ? 'v' : '>'}</span>
+              </button>
+            ) : (
+              <span className="outline-caret-placeholder"></span>
+            )}
+            <button
+              className="outline-title-btn"
+              onClick={() => item.pageNumber && onOutlineJump(item.pageNumber)}
+              disabled={!item.pageNumber}
+              title={item.pageNumber ? `Go to page ${item.pageNumber}` : item.title}
+            >
+              <span className="outline-title-text">{item.title || 'Untitled section'}</span>
+              {item.pageNumber && <span className="outline-page-number">{item.pageNumber}</span>}
+            </button>
+          </div>
+          {hasChildren && isExpanded ? renderOutlineItems(item.items, itemPath) : null}
+        </div>
+      );
+    })
+  );
+
   return (
     <div className="reader-view">
       <header className="reader-topbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button className="icon-btn" onClick={onToggleSidebar} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+          <button
+            className={`icon-btn ${isOutlineVisible ? 'active' : ''}`}
+            onClick={onToggleOutline}
+            style={{ color: isOutlineVisible ? 'var(--accent)' : 'var(--text-secondary)' }}
+            title="Contents"
+          >
+            <List size={20} />
+          </button>
+          <button className="icon-btn" onClick={onToggleSidebar} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }} title="App sidebar">
             <Menu size={20} />
           </button>
           <button className="back-btn" onClick={onBack}>
@@ -96,6 +165,21 @@ export default function ReaderView({
         </div>
       </header>
       <div className="reader-layout" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <aside className={`reader-outline ${isOutlineVisible ? '' : 'hidden'}`} aria-label="Table of contents">
+          <div className="outline-header-row">
+            <span className="outline-header">Contents</span>
+            <button className="outline-hide-btn" onClick={onToggleOutline} title="Hide contents">
+              <X size={14} />
+            </button>
+          </div>
+          {outline.length === 0 ? (
+            <div className="outline-empty">No outline available</div>
+          ) : (
+            <nav className="outline-list">
+              {renderOutlineItems(outline)}
+            </nav>
+          )}
+        </aside>
         <div className="reader-container" ref={readerContainerRef} onScroll={onScroll} style={{ flex: 1, overflow: 'auto' }}>
           <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <Document
@@ -111,6 +195,7 @@ export default function ReaderView({
                 return (
                   <div
                     key={`page_${pageNumber}`}
+                    data-page-number={pageNumber}
                     style={{
                       marginBottom: '24px',
                       boxShadow: '0 4px 24px rgba(0,0,0,0.06)',

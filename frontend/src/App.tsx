@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useMemo, type UIEvent } from 'react';
+import { useState, useEffect, useRef, useMemo, type UIEvent, type ComponentProps } from 'react';
 import { GetBooks, SelectAndAddBook, UpdateProgress, GetCategories, AddCategory, SetBookCategory, SaveCoverData, DeleteCategory, DeleteBook, Translate, GetGoals, AddGoal, UpdateGoal, DeleteGoal, ToggleGoal, UpdateGoalDayTime, AddCalendarGoal } from '../wailsjs/go/main/App';
-import type { Book, Goal } from './types';
+import type { Book, Goal, OutlineEntry } from './types';
 import Sidebar from './components/Sidebar';
 import SettingsView from './components/SettingsView';
 import PlannerView from './components/PlannerView';
@@ -10,6 +10,13 @@ import { getWeekStart, getWeekDays, formatMonthYear, formatWeekStart } from './u
 import './App.css';
 
 type ActiveTab = 'library' | 'planner' | 'settings';
+type PdfOutlineItem = {
+  title: string;
+  dest?: string | any[] | null;
+  items?: PdfOutlineItem[];
+};
+type ReaderOnDocumentLoadSuccess = NonNullable<ComponentProps<typeof ReaderView>['onDocumentLoadSuccess']>;
+type PdfDocument = Parameters<ReaderOnDocumentLoadSuccess>[0];
 
 const baseCategories = ['Non-fiction', 'Fiction', 'Research', 'Education'];
 const baseCategorySet = new Set(baseCategories);
@@ -19,6 +26,8 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('library');
   const [readingBook, setReadingBook] = useState<Book | null>(null);
   const [numPages, setNumPages] = useState<number | null>(null);
+  const [outline, setOutline] = useState<OutlineEntry[]>([]);
+  const [isOutlineVisible, setIsOutlineVisible] = useState(false);
   const [zoom, setZoom] = useState(1.0);
   const zoomRef = useRef(1.0);
   const gestureZoomRef = useRef(1.0);
@@ -100,9 +109,33 @@ export default function App() {
     setZoom(nextZoom);
   };
 
+  const buildOutline = async (items: PdfOutlineItem[] | null, pdfDoc: PdfDocument): Promise<OutlineEntry[]> => {
+    if (!items || items.length === 0) return [];
+
+    return Promise.all(items.map(async (item) => {
+      let pageNumber: number | undefined;
+      if (item.dest) {
+        const resolvedDest = typeof item.dest === 'string' ? await pdfDoc.getDestination(item.dest) : item.dest;
+        if (resolvedDest?.[0]) {
+          const pageIndex = await pdfDoc.getPageIndex(resolvedDest[0]);
+          pageNumber = pageIndex + 1;
+        }
+      }
+
+      const children = await buildOutline(item.items || [], pdfDoc);
+      return {
+        title: item.title || 'Untitled section',
+        pageNumber,
+        items: children
+      };
+    }));
+  };
+
   const openBook = (book: Book) => {
     setActiveTab('library');
     updateZoom(1.0);
+    setOutline([]);
+    setIsOutlineVisible(false);
     setReadingBook(book);
   };
 
@@ -191,8 +224,14 @@ export default function App() {
     setGoals(updated || []);
   };
 
-  const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
-    setNumPages(numPages);
+  const loadOutline = async (pdfDoc: PdfDocument) => {
+    const nextOutline = await buildOutline(await pdfDoc.getOutline(), pdfDoc);
+    setOutline(nextOutline);
+  };
+
+  const onDocumentLoadSuccess: ReaderOnDocumentLoadSuccess = (pdfDoc) => {
+    setNumPages(pdfDoc.numPages);
+    loadOutline(pdfDoc);
     if (readingBook) {
       const pageToLoad = readingBook.currentPage || 1;
       setCurrentPage(pageToLoad);
@@ -200,9 +239,7 @@ export default function App() {
 
       setTimeout(() => {
         if (readerContainerRef.current) {
-          const target = readerContainerRef.current;
-          const pageRenderHeight = target.scrollHeight / numPages;
-          target.scrollTop = (pageToLoad - 1) * pageRenderHeight;
+          scrollToPageWithRetry(pageToLoad, pdfDoc.numPages);
         }
       }, 500);
     }
@@ -379,6 +416,50 @@ export default function App() {
     }
   };
 
+  const scrollToPage = (pageNumber: number, totalPages?: number) => {
+    const target = readerContainerRef.current;
+    if (!target) return false;
+
+    const pageElement = target.querySelector<HTMLElement>(`[data-page-number="${pageNumber}"]`);
+    if (pageElement) {
+      const containerRect = target.getBoundingClientRect();
+      const pageRect = pageElement.getBoundingClientRect();
+      const delta = pageRect.top - containerRect.top;
+      if (Math.abs(delta) > 1) {
+        target.scrollTop += delta;
+      }
+      return true;
+    }
+
+    const pages = totalPages ?? numPages;
+    if (pages) {
+      const pageRenderHeight = target.scrollHeight / pages;
+      target.scrollTop = (pageNumber - 1) * pageRenderHeight;
+      return true;
+    }
+    return false;
+  };
+
+  const scrollToPageWithRetry = (pageNumber: number, totalPages?: number) => {
+    let attempts = 6;
+    const tick = () => {
+      if (!scrollToPage(pageNumber, totalPages)) {
+        return;
+      }
+      attempts -= 1;
+      if (attempts > 0) {
+        requestAnimationFrame(tick);
+      }
+    };
+    tick();
+  };
+
+  const handleOutlineJump = (pageNumber: number) => {
+    scrollToPageWithRetry(pageNumber);
+    scrollPageRef.current = pageNumber;
+    setCurrentPage(pageNumber);
+  };
+
   return (
     <div className={`app-container ${!isSidebarVisible ? 'sidebar-hidden' : ''}`}>
       <Sidebar
@@ -457,6 +538,8 @@ export default function App() {
               numPages={numPages}
               currentPage={currentPage}
               zoom={zoom}
+              outline={outline}
+              isOutlineVisible={isOutlineVisible}
               isTranslatorVisible={isTranslatorVisible}
               selectedText={selectedText}
               translatedText={translatedText}
@@ -465,12 +548,16 @@ export default function App() {
               readerContainerRef={readerContainerRef}
               onScroll={handleScroll}
               onDocumentLoadSuccess={onDocumentLoadSuccess}
+              onOutlineJump={handleOutlineJump}
               onBack={() => {
                 setReadingBook(null);
                 setNumPages(null);
+                setOutline([]);
+                setIsOutlineVisible(false);
                 setIsSidebarVisible(true);
               }}
               onToggleSidebar={() => setIsSidebarVisible(prev => !prev)}
+              onToggleOutline={() => setIsOutlineVisible(prev => !prev)}
               onToggleTranslator={() => setIsTranslatorVisible(prev => !prev)}
               onZoomOut={() => updateZoom(Math.max(0.2, zoom / 1.25))}
               onZoomIn={() => updateZoom(Math.min(4, zoom * 1.25))}
