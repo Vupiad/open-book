@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react';
+import { useState, useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
 import { Book as BookIcon, LayoutList, Calendar, BookOpen, Settings, HelpCircle, Plus, Trash2, Check } from 'lucide-react';
 import type { Goal } from '../types';
 
@@ -39,10 +39,53 @@ export default function Sidebar({
   onDeleteGoal,
   onAddGoal
 }: SidebarProps) {
+  const [width, setWidth] = useState(240);
+  const isResizing = useRef(false);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing.current) return;
+      let newWidth = e.clientX;
+      if (newWidth < 0) newWidth = 0;
+      setWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      isResizing.current = false;
+      document.body.style.cursor = 'default';
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isResizing.current = true;
+    document.body.style.cursor = 'col-resize';
+  };
+
   return (
-    <aside className="sidebar">
-      <div className="sidebar-header">
-        <h2 className="title">The Archive</h2>
+    <aside className="sidebar" style={{ width: `${width}px`, minWidth: `${width}px`, position: 'relative' }}>
+      <div 
+        onMouseDown={handleMouseDown}
+        style={{
+          width: '6px',
+          cursor: 'col-resize',
+          position: 'absolute',
+          right: '-3px',
+          top: 0,
+          bottom: 0,
+          zIndex: 100,
+        }}
+      />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowX: 'hidden', minWidth: 0 }}>
+        <div className="sidebar-header">
+          <h2 className="title">The Archive</h2>
         <span className="subtitle">PRIVATE COLLECTION</span>
       </div>
 
@@ -222,6 +265,7 @@ export default function Sidebar({
             <span className="role">Premium Curator</span>
           </div>
         </div>
+      </div>
       </div>
     </aside>
   );

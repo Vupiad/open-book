@@ -47,6 +47,7 @@ type App struct {
 	books      []Book
 	categories []string
 	goalsData  GoalsData
+	activity   map[string]int
 	dataPath   string
 }
 
@@ -58,6 +59,7 @@ func NewApp() *App {
 		goalsData: GoalsData{
 			Goals: make([]Goal, 0),
 		},
+		activity: make(map[string]int),
 	}
 }
 
@@ -74,7 +76,36 @@ func (a *App) startup(ctx context.Context) {
 		a.loadCategories()
 		a.loadBooks()
 		a.loadGoals()
+		a.loadActivity()
 	}
+}
+
+func (a *App) loadActivity() {
+	if a.dataPath == "" {
+		return
+	}
+	dbPath := filepath.Join(a.dataPath, "activity.json")
+	data, err := os.ReadFile(dbPath)
+	if err == nil {
+		json.Unmarshal(data, &a.activity)
+	} else {
+		a.activity = make(map[string]int)
+	}
+}
+
+func (a *App) saveActivity() {
+	if a.dataPath == "" {
+		return
+	}
+	dbPath := filepath.Join(a.dataPath, "activity.json")
+	data, err := json.MarshalIndent(a.activity, "", "  ")
+	if err == nil {
+		os.WriteFile(dbPath, data, 0644)
+	}
+}
+
+func (a *App) GetActivityLog() map[string]int {
+	return a.activity
 }
 
 func (a *App) loadCategories() {
@@ -321,6 +352,27 @@ func (a *App) SelectAndAddBook() (*Book, error) {
 	return &book, nil
 }
 
+func (a *App) AddBookFromPath(filePath string) (*Book, error) {
+	if filePath == "" || filepath.Ext(filePath) != ".pdf" {
+		return nil, fmt.Errorf("invalid file or not a PDF")
+	}
+
+	bookTitle := strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
+	book := Book{
+		ID:       uuid.New().String(),
+		Title:    bookTitle,
+		Author:   "Unknown Author",
+		Path:     filePath,
+		Progress: 0,
+		Category: categorizeTitle(bookTitle),
+	}
+
+	a.books = append(a.books, book)
+	a.saveBooks()
+
+	return &book, nil
+}
+
 func (a *App) SaveCoverData(bookId string, base64Data string) error {
 	for i, b := range a.books {
 		if b.ID == bookId {
@@ -385,6 +437,35 @@ func (a *App) DeleteCategory(cat string) []string {
 	return a.categories
 }
 
+func (a *App) RenameCategory(oldCat string, newCat string) []string {
+	if oldCat == "" || newCat == "" || oldCat == "All Works" || oldCat == "Non-fiction" || oldCat == "Fiction" || oldCat == "Research" || oldCat == "Education" {
+		return a.categories
+	}
+
+	// Update category list
+	for i, c := range a.categories {
+		if c == oldCat {
+			a.categories[i] = newCat
+			a.saveCategories()
+			break
+		}
+	}
+
+	// Update all books
+	needsSave := false
+	for i, b := range a.books {
+		if b.Category == oldCat {
+			a.books[i].Category = newCat
+			needsSave = true
+		}
+	}
+	if needsSave {
+		a.saveBooks()
+	}
+
+	return a.categories
+}
+
 func (a *App) SetBookCategory(bookId string, cat string) error {
 	a.AddCategory(cat) // Ensure new category behaves globally natively
 	for i, b := range a.books {
@@ -408,6 +489,20 @@ func (a *App) UpdateProgress(bookId string, currentPage int, totalPages int) err
 			if percent > 100 {
 				percent = 100
 			}
+			
+			// Track activity
+			if currentPage > b.CurrentPage && b.CurrentPage > 0 {
+				pagesRead := currentPage - b.CurrentPage
+				today := time.Now().Format("2006-01-02")
+				a.activity[today] += pagesRead
+				a.saveActivity()
+			} else if currentPage > 0 && b.CurrentPage == 0 {
+				pagesRead := currentPage
+				today := time.Now().Format("2006-01-02")
+				a.activity[today] += pagesRead
+				a.saveActivity()
+			}
+
 			a.books[i].Progress = percent
 			a.books[i].CurrentPage = currentPage
 			a.books[i].TotalPages = totalPages

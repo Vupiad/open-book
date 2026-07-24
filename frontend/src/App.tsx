@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, type UIEvent, type ComponentProps } from 'react';
-import { GetBooks, SelectAndAddBook, UpdateProgress, GetCategories, AddCategory, SetBookCategory, SaveCoverData, DeleteCategory, DeleteBook, Translate, GetGoals, AddGoal, UpdateGoal, DeleteGoal, ToggleGoal, UpdateGoalDayTime, AddCalendarGoal } from '../wailsjs/go/main/App';
+import { GetBooks, SelectAndAddBook, AddBookFromPath, UpdateProgress, GetCategories, AddCategory, SetBookCategory, SaveCoverData, DeleteCategory, DeleteBook, Translate, GetGoals, AddGoal, UpdateGoal, DeleteGoal, ToggleGoal, UpdateGoalDayTime, AddCalendarGoal, RenameCategory } from '../wailsjs/go/main/App';
+import { OnFileDrop, OnFileDropOff } from '../wailsjs/runtime/runtime';
 import type { Book, Goal, OutlineEntry } from './types';
 import Sidebar from './components/Sidebar';
 import SettingsView from './components/SettingsView';
@@ -85,6 +86,28 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    OnFileDrop(async (x: number, y: number, paths: string[]) => {
+      if (paths && paths.length > 0) {
+        let added = false;
+        for (const p of paths) {
+          if (p.toLowerCase().endsWith('.pdf')) {
+            try {
+              await AddBookFromPath(p);
+              added = true;
+            } catch (err) {
+              console.error('Failed to add book from drop', err);
+            }
+          }
+        }
+        if (added) {
+          await fetchBooks();
+        }
+      }
+    }, true);
+    return () => OnFileDropOff();
+  }, []);
+
+  useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
@@ -166,11 +189,20 @@ export default function App() {
     setCategories(updated);
   };
 
-  const handleDeleteCategory = async (cat: string) => {
-    const updated = await DeleteCategory(cat);
-    setCategories(updated);
-    if (activeCategory === cat) {
+  const handleDeleteCategory = async (name: string) => {
+    const cats = await DeleteCategory(name);
+    setCategories(cats);
+    if (activeCategory === name) {
       setActiveCategory('All Works');
+    }
+    await fetchBooks();
+  };
+
+  const handleRenameCategory = async (oldName: string, newName: string) => {
+    const cats = await RenameCategory(oldName, newName);
+    setCategories(cats);
+    if (activeCategory === oldName) {
+      setActiveCategory(newName);
     }
     await fetchBooks();
   };
@@ -390,17 +422,28 @@ export default function App() {
     Chinese: 'zh-CN'
   };
 
-  const speakText = (text: string, lang?: string) => {
+  const speakText = (text: string, lang: string = 'en-US') => {
     const trimmed = text.trim();
-    if (!trimmed || typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      return;
+    if (!trimmed) return;
+
+    try {
+      const langCode = lang.split('-')[0];
+      const safeText = trimmed.slice(0, 200);
+      const url = `https://translate.googleapis.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(safeText)}&tl=${langCode}&client=tw-ob`;
+      const audio = new Audio(url);
+      
+      audio.play().catch(e => {
+        console.warn('Audio play failed, falling back to window.speechSynthesis', e);
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(trimmed);
+          utterance.lang = lang;
+          window.speechSynthesis.speak(utterance);
+        }
+      });
+    } catch (err) {
+      console.error('Speech error', err);
     }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(trimmed);
-    if (lang) {
-      utterance.lang = lang;
-    }
-    window.speechSynthesis.speak(utterance);
   };
 
   const handleSourceTextChange = (text: string) => {
@@ -481,6 +524,7 @@ export default function App() {
               onSelectCategory={setActiveCategory}
               onAddCategory={handleAddCategory}
               onDeleteCategory={handleDeleteCategory}
+              onRenameCategory={handleRenameCategory}
               onDeleteBook={handleDeleteBook}
               onAddBook={handleAddBook}
               onOpenBook={openBook}

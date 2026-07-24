@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type RefObject, type UIEvent, type ComponentProps } from 'react';
-import { Menu, ChevronLeft, Languages, ArrowDown, Sparkles, X, Volume2, List } from 'lucide-react';
+import { ChevronLeft, Languages, ArrowDown, Sparkles, X, Volume2, List } from 'lucide-react';
 import { Document, Page } from '../pdf';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import type { Book, OutlineEntry } from '../types';
@@ -199,9 +199,7 @@ export default function ReaderView({
           >
             <List size={20} />
           </button>
-          <button className="icon-btn" onClick={onToggleSidebar} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }} title="App sidebar">
-            <Menu size={20} />
-          </button>
+
           <button className="back-btn" onClick={onBack}>
             <ChevronLeft size={20} /> Back to Library
           </button>
@@ -221,7 +219,7 @@ export default function ReaderView({
           >
             <Languages size={20} />
           </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-sidebar)', padding: '4px 12px', borderRadius: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-sidebar)', padding: '2px 12px', borderRadius: '16px' }}>
             <button onClick={onZoomOut} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--text-secondary)' }}>-</button>
             <span style={{ fontSize: '13px', fontWeight: 500, minWidth: '40px', textAlign: 'center', color: 'var(--text-primary)' }}>{Math.round(zoom * 100)}%</span>
             <button onClick={onZoomIn} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--text-secondary)' }}>+</button>

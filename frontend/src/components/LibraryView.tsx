@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
 import { Plus, Search, Filter, Bell, X, Trash2 } from 'lucide-react';
 import { Document, Page } from '../pdf';
 import type { Book } from '../types';
@@ -14,6 +14,7 @@ type LibraryViewProps = {
   onSelectCategory: (category: string) => void;
   onAddCategory: (category: string) => Promise<void>;
   onDeleteCategory: (category: string) => Promise<void>;
+  onRenameCategory: (oldCat: string, newCat: string) => Promise<void>;
   onAddBook: () => void;
   onDeleteBook: (bookId: string) => Promise<void>;
   onOpenBook: (book: Book) => void;
@@ -35,6 +36,7 @@ export default function LibraryView({
   onSelectCategory,
   onAddCategory,
   onDeleteCategory,
+  onRenameCategory,
   onAddBook,
   onDeleteBook,
   onOpenBook,
@@ -42,18 +44,41 @@ export default function LibraryView({
   getBookCover,
   onCoverReady
 }: LibraryViewProps) {
-  const visibleBooks = activeCategory === 'All Works' ? books : books.filter(b => b.category === activeCategory);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortOrder, setSortOrder] = useState<'Recent' | 'Title' | 'Progress'>('Recent');
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [editCategoryName, setEditCategoryName] = useState('');
+
+  const visibleBooks = (activeCategory === 'All Works' ? books : books.filter(b => b.category === activeCategory))
+    .filter(b => b.title.toLowerCase().includes(searchQuery.toLowerCase()) || b.author.toLowerCase().includes(searchQuery.toLowerCase()))
+    .sort((a, b) => {
+      if (sortOrder === 'Title') return a.title.localeCompare(b.title);
+      if (sortOrder === 'Progress') return (b.progress || 0) - (a.progress || 0);
+      return 0; // Default: list order
+    });
 
   return (
     <div className="library-view">
       <header className="topbar">
         <div className="search-bar">
           <Search size={18} color="#707584" />
-          <input type="text" placeholder="Search your editorial collection..." />
+          <input 
+            type="text" 
+            placeholder="Search your collection..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
         <div className="topbar-actions">
-          <button className="icon-btn"><Filter size={20} /></button>
-          <button className="icon-btn"><Bell size={20} /></button>
+          <select 
+            value={sortOrder} 
+            onChange={(e) => setSortOrder(e.target.value as any)}
+            className="sort-select"
+          >
+            <option value="Recent">Recently Added</option>
+            <option value="Title">Title (A-Z)</option>
+            <option value="Progress">Progress</option>
+          </select>
           <button className="add-btn" onClick={onAddBook}>
             <Plus size={18} />
             Add Book
@@ -69,35 +94,79 @@ export default function LibraryView({
           <button className={`category-btn ${activeCategory === 'All Works' ? 'active' : ''}`} onClick={() => onSelectCategory('All Works')}>All Works</button>
           {categories.map(cat => (
             <div key={cat} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <button
-                className={`category-btn ${activeCategory === cat ? 'active' : ''}`}
-                onClick={() => onSelectCategory(cat)}
-                style={{ paddingRight: !baseCategories.has(cat) ? '32px' : '16px' }}
-              >
-                {cat}
-              </button>
-              {!baseCategories.has(cat) && (
-                <button
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    if (confirm(`Delete category "${cat}"? Books will move to Non-fiction.`)) {
-                      await onDeleteCategory(cat);
+              {editingCategory === cat ? (
+                <input
+                  autoFocus
+                  type="text"
+                  value={editCategoryName}
+                  onChange={(e) => setEditCategoryName(e.target.value)}
+                  onBlur={async () => {
+                    if (editCategoryName.trim() && editCategoryName.trim() !== cat) {
+                      await onRenameCategory(cat, editCategoryName.trim());
+                    }
+                    setEditingCategory(null);
+                  }}
+                  onKeyDown={async (e) => {
+                    if (e.key === 'Enter') {
+                      if (editCategoryName.trim() && editCategoryName.trim() !== cat) {
+                        await onRenameCategory(cat, editCategoryName.trim());
+                      }
+                      setEditingCategory(null);
+                    } else if (e.key === 'Escape') {
+                      setEditingCategory(null);
                     }
                   }}
                   style={{
-                    position: 'absolute',
-                    right: '8px',
-                    background: 'transparent',
-                    border: 'none',
-                    padding: '4px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    color: activeCategory === cat ? 'rgba(255,255,255,0.7)' : 'var(--text-secondary)'
+                    background: 'var(--bg-sidebar)',
+                    border: '1px solid var(--accent)',
+                    borderRadius: '16px',
+                    padding: '6px 12px',
+                    fontSize: '13px',
+                    outline: 'none',
+                    color: 'var(--text-primary)',
+                    width: '120px'
                   }}
-                >
-                  <X size={14} />
-                </button>
+                />
+              ) : (
+                <>
+                  <button
+                    className={`category-btn ${activeCategory === cat ? 'active' : ''}`}
+                    onClick={() => onSelectCategory(cat)}
+                    onDoubleClick={() => {
+                      if (!baseCategories.has(cat)) {
+                        setEditingCategory(cat);
+                        setEditCategoryName(cat);
+                      }
+                    }}
+                    style={{ paddingRight: !baseCategories.has(cat) ? '32px' : '16px' }}
+                    title={!baseCategories.has(cat) ? "Double-click to rename" : ""}
+                  >
+                    {cat}
+                  </button>
+                  {!baseCategories.has(cat) && (
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (confirm(`Delete category "${cat}"? Books will move to Non-fiction.`)) {
+                          await onDeleteCategory(cat);
+                        }
+                      }}
+                      style={{
+                        position: 'absolute',
+                        right: '8px',
+                        background: 'transparent',
+                        border: 'none',
+                        padding: '4px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        color: activeCategory === cat ? 'rgba(255,255,255,0.7)' : 'var(--text-secondary)'
+                      }}
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </>
               )}
             </div>
           ))}
@@ -215,17 +284,7 @@ export default function LibraryView({
                       const newCat = e.target.value;
                       await onSetBookCategory(book.id, newCat);
                     }}
-                    style={{
-                      background: 'var(--card-bg)',
-                      color: 'var(--text-secondary)',
-                      border: '1px solid var(--card-border)',
-                      borderRadius: '6px',
-                      padding: '3px 6px',
-                      fontSize: '11px',
-                      cursor: 'pointer',
-                      maxWidth: '90px',
-                      outline: 'none'
-                    }}
+                    className="category-select"
                   >
                     {categories.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
@@ -235,8 +294,21 @@ export default function LibraryView({
             </div>
           ))}
           {visibleBooks.length === 0 && (
-            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px', color: '#707584' }}>
-              No books inside this category yet. Click "Add Book" to get started!
+            <div className="empty-state">
+              <div className="empty-state-icon">
+                <Search size={48} opacity={0.2} />
+              </div>
+              <h3 style={{ marginTop: '16px', marginBottom: '8px', color: 'var(--text-primary)', fontSize: '18px' }}>No books found</h3>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '14px' }}>
+                {books.length === 0 
+                  ? "Your shelf is completely bare. Let's fix that!" 
+                  : "We couldn't find any books matching your criteria."}
+              </p>
+              {books.length === 0 && (
+                <button className="add-btn" onClick={onAddBook} style={{ margin: '0 auto' }}>
+                  <Plus size={18} /> Add Your First Book
+                </button>
+              )}
             </div>
           )}
         </div>
