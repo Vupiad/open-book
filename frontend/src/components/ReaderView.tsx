@@ -1,6 +1,7 @@
-import { useState, type RefObject, type UIEvent, type ComponentProps } from 'react';
+import { useState, useEffect, useRef, type RefObject, type UIEvent, type ComponentProps } from 'react';
 import { Menu, ChevronLeft, Languages, ArrowDown, Sparkles, X, Volume2, List } from 'lucide-react';
 import { Document, Page } from '../pdf';
+import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import type { Book, OutlineEntry } from '../types';
 
 type OnDocumentLoadSuccess = NonNullable<ComponentProps<typeof Document>['onLoadSuccess']>;
@@ -61,6 +62,64 @@ export default function ReaderView({
   onSpeakTarget
 }: ReaderViewProps) {
   const [expandedOutline, setExpandedOutline] = useState<Set<string>>(() => new Set());
+  const [scrollParent, setScrollParent] = useState<HTMLElement | undefined>(undefined);
+  const virtuosoRef = useRef<VirtuosoHandle>(null);
+
+  useEffect(() => {
+    if (readerContainerRef.current) {
+      setScrollParent(readerContainerRef.current);
+    }
+  }, [readerContainerRef]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
+
+      const container = readerContainerRef.current;
+      if (!container) return;
+
+      switch (e.key) {
+        case 'ArrowDown':
+          container.scrollBy({ top: 50, behavior: 'auto' });
+          e.preventDefault();
+          break;
+        case 'ArrowUp':
+          container.scrollBy({ top: -50, behavior: 'auto' });
+          e.preventDefault();
+          break;
+        case 'PageDown':
+        case ' ':
+          if (e.shiftKey && e.key === ' ') {
+            container.scrollBy({ top: -container.clientHeight * 0.8, behavior: 'smooth' });
+          } else {
+            container.scrollBy({ top: container.clientHeight * 0.8, behavior: 'smooth' });
+          }
+          e.preventDefault();
+          break;
+        case 'PageUp':
+          container.scrollBy({ top: -container.clientHeight * 0.8, behavior: 'smooth' });
+          e.preventDefault();
+          break;
+        case '=':
+        case '+':
+          if (e.ctrlKey || e.metaKey) {
+            onZoomIn();
+            e.preventDefault();
+          }
+          break;
+        case '-':
+        case '_':
+          if (e.ctrlKey || e.metaKey) {
+            onZoomOut();
+            e.preventDefault();
+          }
+          break;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [readerContainerRef, onZoomIn, onZoomOut]);
+
   const speakerButtonStyle = {
     border: '1px solid var(--card-border)',
     background: 'var(--card-bg)',
@@ -109,7 +168,12 @@ export default function ReaderView({
             )}
             <button
               className="outline-title-btn"
-              onClick={() => item.pageNumber && onOutlineJump(item.pageNumber)}
+              onClick={() => {
+                if (item.pageNumber) {
+                  virtuosoRef.current?.scrollToIndex({ index: item.pageNumber - 1, align: 'start' });
+                  onOutlineJump(item.pageNumber);
+                }
+              }}
               disabled={!item.pageNumber}
               title={item.pageNumber ? `Go to page ${item.pageNumber}` : item.title}
             >
@@ -188,39 +252,48 @@ export default function ReaderView({
               loading={<div className="loading">Loading PDF...</div>}
               externalLinkTarget="_blank"
             >
-              {Array.from(new Array(numPages || 0), (_, index) => {
-                const pageNumber = index + 1;
-                const isVisible = pageNumber >= currentPage - 3 && pageNumber <= currentPage + 3;
-
-                return (
-                  <div
-                    key={`page_${pageNumber}`}
-                    data-page-number={pageNumber}
-                    style={{
-                      marginBottom: '24px',
-                      boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
-                      minHeight: isVisible ? 'auto' : `${842 * zoom}px`,
-                      width: isVisible ? 'auto' : `${595 * zoom}px`,
-                      backgroundColor: '#ffffff',
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center'
-                    }}
-                  >
-                    {isVisible ? (
-                      <Page
-                        pageNumber={pageNumber}
-                        scale={zoom}
-                        renderTextLayer={true}
-                        renderAnnotationLayer={true}
-                        devicePixelRatio={window.devicePixelRatio || 1}
-                      />
-                    ) : (
-                      <div style={{ color: '#aaa', fontSize: '14px' }}>Page {pageNumber}</div>
-                    )}
-                  </div>
-                );
-              })}
+              {scrollParent && numPages ? (
+                <Virtuoso
+                  ref={virtuosoRef}
+                  key={readingBook.id}
+                  initialTopMostItemIndex={Math.max(0, currentPage - 1)}
+                  useWindowScroll={false}
+                  customScrollParent={scrollParent}
+                  totalCount={numPages}
+                  overscan={10}
+                  itemContent={(index) => {
+                    const pageNumber = index + 1;
+                    return (
+                      <div
+                        style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '24px' }}
+                      >
+                        <div
+                          data-page-number={pageNumber}
+                          style={{
+                            boxShadow: '0 4px 24px rgba(0,0,0,0.06)',
+                            minHeight: `${842 * zoom}px`,
+                            width: `${595 * zoom}px`,
+                            backgroundColor: '#ffffff',
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            animation: 'pageFadeIn 0.4s ease-out forwards'
+                          }}
+                        >
+                          <Page
+                            pageNumber={pageNumber}
+                            scale={zoom}
+                            renderTextLayer={true}
+                            renderAnnotationLayer={true}
+                            devicePixelRatio={window.devicePixelRatio || 1}
+                            loading={<div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ccc', fontSize: '12px' }}>Loading...</div>}
+                          />
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
+              ) : null}
             </Document>
           </div>
         </div>

@@ -236,12 +236,6 @@ export default function App() {
       const pageToLoad = readingBook.currentPage || 1;
       setCurrentPage(pageToLoad);
       scrollPageRef.current = pageToLoad;
-
-      setTimeout(() => {
-        if (readerContainerRef.current) {
-          scrollToPageWithRetry(pageToLoad, pdfDoc.numPages);
-        }
-      }, 500);
     }
   };
 
@@ -416,46 +410,9 @@ export default function App() {
     }
   };
 
-  const scrollToPage = (pageNumber: number, totalPages?: number) => {
-    const target = readerContainerRef.current;
-    if (!target) return false;
 
-    const pageElement = target.querySelector<HTMLElement>(`[data-page-number="${pageNumber}"]`);
-    if (pageElement) {
-      const containerRect = target.getBoundingClientRect();
-      const pageRect = pageElement.getBoundingClientRect();
-      const delta = pageRect.top - containerRect.top;
-      if (Math.abs(delta) > 1) {
-        target.scrollTop += delta;
-      }
-      return true;
-    }
-
-    const pages = totalPages ?? numPages;
-    if (pages) {
-      const pageRenderHeight = target.scrollHeight / pages;
-      target.scrollTop = (pageNumber - 1) * pageRenderHeight;
-      return true;
-    }
-    return false;
-  };
-
-  const scrollToPageWithRetry = (pageNumber: number, totalPages?: number) => {
-    let attempts = 6;
-    const tick = () => {
-      if (!scrollToPage(pageNumber, totalPages)) {
-        return;
-      }
-      attempts -= 1;
-      if (attempts > 0) {
-        requestAnimationFrame(tick);
-      }
-    };
-    tick();
-  };
 
   const handleOutlineJump = (pageNumber: number) => {
-    scrollToPageWithRetry(pageNumber);
     scrollPageRef.current = pageNumber;
     setCurrentPage(pageNumber);
   };

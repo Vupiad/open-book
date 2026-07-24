@@ -3,7 +3,6 @@ package main
 import (
 	"embed"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/wailsapp/wails/v2"
@@ -33,16 +32,7 @@ func (h *FileLoader) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		fileData, err := os.ReadFile(book.Path)
-		if err != nil {
-			res.WriteHeader(http.StatusNotFound)
-			res.Write([]byte(err.Error()))
-			return
-		}
-
-		res.Header().Set("Content-Type", "application/pdf")
-		res.WriteHeader(http.StatusOK)
-		res.Write(fileData)
+		http.ServeFile(res, req, book.Path)
 		return
 	}
 	res.WriteHeader(http.StatusNotFound)
