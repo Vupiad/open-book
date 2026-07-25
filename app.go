@@ -300,6 +300,56 @@ func (a *App) AddGoal(title string) []Goal {
 	return a.goalsData.Goals
 }
 
+func (a *App) getBookByID(bookId string) *Book {
+	for i, b := range a.books {
+		if b.ID == bookId {
+			return &a.books[i]
+		}
+	}
+	return nil
+}
+
+func calcGoalProgress(g *Goal, currentPage int, totalPages int) (int, bool) {
+	if g.BookID == "" || currentPage <= 0 {
+		return g.Progress, g.Completed
+	}
+	gProg := 0
+	if len(g.Sections) > 0 {
+		totalSecPages := 0
+		readSecPages := 0
+		for _, sec := range g.Sections {
+			sp := sec.StartPage
+			ep := sec.EndPage
+			if ep < sp {
+				ep = sp
+			}
+			secLen := ep - sp + 1
+			if secLen <= 0 {
+				secLen = 1
+			}
+			totalSecPages += secLen
+
+			if currentPage >= ep {
+				readSecPages += secLen
+			} else if currentPage >= sp {
+				readSecPages += currentPage - sp + 1
+			}
+		}
+		if totalSecPages > 0 {
+			gProg = int(float64(readSecPages) / float64(totalSecPages) * 100)
+		}
+	} else if totalPages > 0 {
+		gProg = int(float64(currentPage) / float64(totalPages) * 100)
+	}
+	if gProg > 100 {
+		gProg = 100
+	}
+	if gProg < 0 {
+		gProg = 0
+	}
+	return gProg, gProg >= 100
+}
+
 func (a *App) AddGoalWithBook(title string, bookId string, bookTitle string, sections []GoalSection) []Goal {
 	goal := Goal{
 		ID:        uuid.New().String(),
@@ -310,6 +360,9 @@ func (a *App) AddGoalWithBook(title string, bookId string, bookTitle string, sec
 		BookTitle: bookTitle,
 		Sections:  sections,
 		Progress:  0,
+	}
+	if b := a.getBookByID(bookId); b != nil {
+		goal.Progress, goal.Completed = calcGoalProgress(&goal, b.CurrentPage, b.TotalPages)
 	}
 	a.goalsData.Goals = append(a.goalsData.Goals, goal)
 	a.saveGoals()
@@ -323,6 +376,9 @@ func (a *App) UpdateGoalWithBook(id string, title string, bookId string, bookTit
 			a.goalsData.Goals[i].BookID = bookId
 			a.goalsData.Goals[i].BookTitle = bookTitle
 			a.goalsData.Goals[i].Sections = sections
+			if b := a.getBookByID(bookId); b != nil {
+				a.goalsData.Goals[i].Progress, a.goalsData.Goals[i].Completed = calcGoalProgress(&a.goalsData.Goals[i], b.CurrentPage, b.TotalPages)
+			}
 			a.saveGoals()
 			break
 		}
@@ -593,37 +649,12 @@ func (a *App) UpdateProgress(bookId string, currentPage int, totalPages int) err
 			// Update associated goals progress
 			goalsUpdated := false
 			for idx, g := range a.goalsData.Goals {
-				if g.BookID == bookId && len(g.Sections) > 0 {
-					totalSecPages := 0
-					readSecPages := 0
-					for _, sec := range g.Sections {
-						sp := sec.StartPage
-						ep := sec.EndPage
-						if ep < sp {
-							ep = sp
-						}
-						secLen := ep - sp + 1
-						if secLen <= 0 {
-							secLen = 1
-						}
-						totalSecPages += secLen
-
-						if currentPage >= ep {
-							readSecPages += secLen
-						} else if currentPage > sp {
-							readSecPages += currentPage - sp + 1
-						}
-					}
-					if totalSecPages > 0 {
-						gProg := int(float64(readSecPages) / float64(totalSecPages) * 100)
-						if gProg > 100 {
-							gProg = 100
-						}
-						if a.goalsData.Goals[idx].Progress != gProg || a.goalsData.Goals[idx].Completed != (gProg >= 100) {
-							a.goalsData.Goals[idx].Progress = gProg
-							a.goalsData.Goals[idx].Completed = (gProg >= 100)
-							goalsUpdated = true
-						}
+				if g.BookID == bookId {
+					gProg, gComp := calcGoalProgress(&g, currentPage, totalPages)
+					if a.goalsData.Goals[idx].Progress != gProg || a.goalsData.Goals[idx].Completed != gComp {
+						a.goalsData.Goals[idx].Progress = gProg
+						a.goalsData.Goals[idx].Completed = gComp
+						goalsUpdated = true
 					}
 				}
 			}
