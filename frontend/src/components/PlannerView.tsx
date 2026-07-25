@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react';
+import { useMemo, type Dispatch, type SetStateAction } from 'react';
 import { ChevronLeft, Sparkles, Check, X, Trash2, Plus } from 'lucide-react';
 import Heatmap from './Heatmap';
 import type { Book, Goal } from '../types';
@@ -58,6 +58,20 @@ export default function PlannerView({
   onAddCalendarGoal,
   onOpenBook
 }: PlannerViewProps) {
+  const currentBook = useMemo(() => {
+    if (!books || books.length === 0) return null;
+    const sorted = [...books].sort((a, b) => {
+      if ((b.lastRead || 0) !== (a.lastRead || 0)) {
+        return (b.lastRead || 0) - (a.lastRead || 0);
+      }
+      const aActive = (a.progress || 0) > 0 && (a.progress || 0) < 100 ? 1 : 0;
+      const bActive = (b.progress || 0) > 0 && (b.progress || 0) < 100 ? 1 : 0;
+      if (bActive !== aActive) return bActive - aActive;
+      return (b.currentPage || 0) - (a.currentPage || 0);
+    });
+    return sorted[0];
+  }, [books]);
+
   return (
     <div className="planner-view" style={{ padding: '40px', height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
@@ -72,19 +86,19 @@ export default function PlannerView({
       <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', flex: 1 }}>
         <Heatmap />
         
-        {books.length > 0 && (
+        {currentBook && (
           <div
             style={{ borderRadius: '16px', overflow: 'hidden', position: 'relative', height: '300px', border: '1px solid var(--card-border)', cursor: 'pointer', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
-            onClick={() => onOpenBook(books[0])}
+            onClick={() => onOpenBook(currentBook)}
           >
             <img
-              src={getBookCover(books[0]) || 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Phenomenology_of_Perception_cover.jpg/800px-Phenomenology_of_Perception_cover.jpg'}
+              src={getBookCover(currentBook) || 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Phenomenology_of_Perception_cover.jpg/800px-Phenomenology_of_Perception_cover.jpg'}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               alt="Current Read"
             />
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.2) 50%, transparent 100%)', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: '24px' }}>
               <span style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', letterSpacing: '0.1em', marginBottom: '8px' }}>JUMP BACK IN</span>
-              <span style={{ fontSize: '24px', fontWeight: 600, color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{books[0].title}</span>
+              <span style={{ fontSize: '24px', fontWeight: 600, color: 'white', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentBook.title}</span>
             </div>
           </div>
         )}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, type UIEvent, type ComponentProps } from 'react';
 import { GetBooks, SelectAndAddBook, AddBookFromPath, UpdateProgress, GetCategories, AddCategory, SetBookCategory, SaveCoverData, DeleteCategory, DeleteBook, Translate, GetGoals, AddGoal, UpdateGoal, DeleteGoal, ToggleGoal, UpdateGoalDayTime, AddCalendarGoal, RenameCategory } from '../wailsjs/go/main/App';
 import { OnFileDrop, OnFileDropOff } from '../wailsjs/runtime/runtime';
-import type { Book, Goal, OutlineEntry } from './types';
+import type { Book, Goal, OutlineEntry, UserSettings } from './types';
 import Sidebar from './components/Sidebar';
 import SettingsView from './components/SettingsView';
 import PlannerView from './components/PlannerView';
@@ -33,7 +33,33 @@ export default function App() {
   const zoomRef = useRef(1.0);
   const gestureZoomRef = useRef(1.0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [settings, setSettings] = useState<UserSettings>(() => {
+    const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const defaults: UserSettings = {
+      theme: systemPrefersDark ? 'dark' : 'light',
+      accent: '#68c7d6',
+    };
+    try {
+      const saved = localStorage.getItem('open-book-settings');
+      if (saved) {
+        return { ...defaults, ...JSON.parse(saved) };
+      }
+    } catch (e) {
+      console.error('Failed to parse saved settings', e);
+    }
+    return defaults;
+  });
+
+  const handleUpdateSettings = (newSettings: Partial<UserSettings>) => {
+    setSettings((prev) => ({ ...prev, ...newSettings }));
+  };
+
+  const handleResetSettings = () => {
+    setSettings({
+      theme: 'dark',
+      accent: '#68c7d6',
+    });
+  };
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [activeCategory, setActiveCategory] = useState('All Works');
   const [categories, setCategories] = useState<string[]>([]);
@@ -81,8 +107,6 @@ export default function App() {
     fetchBooks();
     fetchCategories();
     fetchGoals();
-    const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-    setIsDarkMode(systemPrefersDark);
   }, []);
 
   useEffect(() => {
@@ -108,8 +132,10 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
-  }, [isDarkMode]);
+    document.documentElement.setAttribute('data-theme', settings.theme);
+    document.documentElement.style.setProperty('--accent', settings.accent);
+    localStorage.setItem('open-book-settings', JSON.stringify(settings));
+  }, [settings]);
 
   const fetchCategories = async () => {
     const fetched = await GetCategories();
@@ -159,6 +185,10 @@ export default function App() {
     updateZoom(1.0);
     setOutline([]);
     setIsOutlineVisible(false);
+    setNumPages(null);
+    const targetPage = book.currentPage || 1;
+    setCurrentPage(targetPage);
+    scrollPageRef.current = targetPage;
     setReadingBook(book);
   };
 
@@ -483,7 +513,11 @@ export default function App() {
       <main className="main-content">
         {!readingBook ? (
           activeTab === 'settings' ? (
-            <SettingsView isDarkMode={isDarkMode} onToggleDarkMode={() => setIsDarkMode(!isDarkMode)} />
+            <SettingsView
+              settings={settings}
+              onUpdateSettings={handleUpdateSettings}
+              onResetSettings={handleResetSettings}
+            />
           ) : activeTab === 'planner' ? (
             <PlannerView
               currentWeekFormatted={currentWeekFormatted}

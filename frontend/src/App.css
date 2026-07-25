@@ -10,6 +10,8 @@
   background-color: var(--bg-main);
   transition: all 0.2s ease-in-out;
   border-radius: 16px;
+  position: relative;
+  overflow: hidden;
 }
 
 .app-container.sidebar-hidden .sidebar {
@@ -22,8 +24,11 @@
   background-color: var(--bg-sidebar);
   display: flex;
   flex-direction: column;
-  border-right: 1px solid #eaeef5;
+  border-right: 1px solid var(--card-border);
   padding: 32px 0 24px;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+  position: relative;
+  z-index: 1;
 }
 
 .sidebar-header {
@@ -160,6 +165,8 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
+  z-index: 1;
 }
 
 .library-view {
@@ -268,7 +275,7 @@
 
 .category-btn {
   background-color: var(--bg-sidebar);
-  border: none;
+  border: 1px solid transparent;
   padding: 8px 16px;
   border-radius: 16px;
   font-size: 13px;
@@ -276,16 +283,24 @@
   color: var(--text-secondary);
   cursor: pointer;
   font-family: inherit;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .category-btn:hover {
-  background-color: #e5eaf2;
+  background-color: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+  opacity: 0.85;
 }
 
-.category-btn.active {
+.category-btn.active,
+.category-btn.active:hover {
   background-color: var(--accent);
-  color: white;
+  color: #ffffff;
+  border-color: var(--accent);
+  opacity: 1;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 /* Book Grid */
@@ -384,17 +399,11 @@
 .book-title {
   font-size: 15px;
   font-weight: 600;
-  margin: 0 0 4px 0;
+  margin: 0 0 10px 0;
   color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.book-author {
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin: 0 0 12px 0;
 }
 
 .progress-bar {
@@ -415,6 +424,7 @@
   color: var(--text-secondary);
   text-align: right;
   font-family: monospace;
+  flex-shrink: 0;
 }
 
 /* Reader View */
@@ -430,8 +440,9 @@
   align-items: center;
   justify-content: space-between;
   padding: 2px 8px;
-  background-color: var(--bg-reader);
+  background-color: var(--bg-sidebar);
   border-bottom: 1px solid var(--card-border);
+  transition: background-color 0.3s ease;
 }
 
 .reader-layout {
@@ -824,10 +835,12 @@
   color: var(--text-secondary);
   border: 1px solid var(--card-border);
   border-radius: 6px;
-  padding: 3px 6px;
+  padding: 3px 20px 3px 6px;
   font-size: 11px;
   cursor: pointer;
-  max-width: 90px;
+  max-width: 130px;
+  flex: 1;
+  min-width: 0;
   outline: none;
   -webkit-appearance: none;
   appearance: none;
@@ -835,7 +848,18 @@
   background-repeat: no-repeat;
   background-position: right 4px center;
   background-size: 10px;
-  padding-right: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.category-select:hover,
+.category-select:focus {
+  background-color: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
 }
 
 .category-select option {

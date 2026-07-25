@@ -8,3 +8,10 @@ export type OutlineEntry = {
   pageNumber?: number;
   items: OutlineEntry[];
 };
+
+export type ThemeMode = 'light' | 'dark' | 'slate' | 'amoled' | 'sepia';
+
+export type UserSettings = {
+  theme: ThemeMode;
+  accent: string;
+};
