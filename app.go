@@ -26,6 +26,7 @@ type Book struct {
 	TotalPages  int    `json:"totalPages"`
 	Category    string `json:"category"`
 	Cover       string `json:"cover"`
+	LastRead    int64  `json:"lastRead,omitempty"`
 }
 
 type Goal struct {
@@ -506,6 +507,7 @@ func (a *App) UpdateProgress(bookId string, currentPage int, totalPages int) err
 			a.books[i].Progress = percent
 			a.books[i].CurrentPage = currentPage
 			a.books[i].TotalPages = totalPages
+			a.books[i].LastRead = time.Now().Unix()
 			a.saveBooks()
 			return nil
 		}

@@ -269,14 +269,14 @@ export default function LibraryView({
               </div>
               <div className="book-info">
                 <h3 className="book-title" title={book.title}>{book.title}</h3>
-                <p className="book-author">{book.author}</p>
 
                 <div className="progress-bar">
                   <div className="progress-fill" style={{ width: `${book.progress}%` }}></div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', gap: '8px' }}>
                   <select
                     value={book.category || ''}
+                    title={book.category || ''}
                     onClick={e => e.stopPropagation()}
                     onMouseDown={e => e.stopPropagation()}
                     onChange={async (e) => {

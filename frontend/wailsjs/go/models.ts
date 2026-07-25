@@ -10,6 +10,7 @@ export namespace main {
 	    totalPages: number;
 	    category: string;
 	    cover: string;
+	    lastRead?: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new Book(source);
@@ -26,6 +27,7 @@ export namespace main {
 	        this.totalPages = source["totalPages"];
 	        this.category = source["category"];
 	        this.cover = source["cover"];
+	        this.lastRead = source["lastRead"];
 	    }
 	}
 	export class Goal {

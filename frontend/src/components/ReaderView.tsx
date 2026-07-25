@@ -72,6 +72,15 @@ export default function ReaderView({
   }, [readerContainerRef]);
 
   useEffect(() => {
+    if (numPages && virtuosoRef.current && currentPage > 1) {
+      const timer = setTimeout(() => {
+        virtuosoRef.current?.scrollToIndex({ index: Math.max(0, currentPage - 1), align: 'start' });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [numPages, readingBook.id]);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLInputElement) return;
 
