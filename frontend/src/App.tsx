@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, type UIEvent, type ComponentProps } from 'react';
-import { GetBooks, SelectAndAddBook, AddBookFromPath, UpdateProgress, GetCategories, AddCategory, SetBookCategory, SaveCoverData, DeleteCategory, DeleteBook, Translate, GetGoals, AddGoal, UpdateGoal, DeleteGoal, ToggleGoal, UpdateGoalDayTime, AddCalendarGoal, RenameCategory } from '../wailsjs/go/main/App';
+import { GetBooks, SelectAndAddBook, AddBookFromPath, UpdateProgress, GetCategories, AddCategory, SetBookCategory, SaveCoverData, DeleteCategory, DeleteBook, Translate, GetGoals, AddGoal, UpdateGoal, DeleteGoal, ToggleGoal, UpdateGoalDayTime, AddCalendarGoal, RenameCategory, AddGoalWithBook, UpdateGoalWithBook, GetWeeklyHistory } from '../wailsjs/go/main/App';
 import { OnFileDrop, OnFileDropOff } from '../wailsjs/runtime/runtime';
-import type { Book, Goal, OutlineEntry, UserSettings } from './types';
+import type { Book, Goal, GoalSection, WeeklyHistory, OutlineEntry, UserSettings } from './types';
 import Sidebar from './components/Sidebar';
 import SettingsView from './components/SettingsView';
 import PlannerView from './components/PlannerView';
@@ -73,6 +73,7 @@ export default function App() {
   const [isTranslating, setIsTranslating] = useState(false);
 
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [weeklyHistory, setWeeklyHistory] = useState<WeeklyHistory[]>([]);
   const [newGoalTitle, setNewGoalTitle] = useState('');
   const [isAddingGoal, setIsAddingGoal] = useState(false);
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
@@ -145,6 +146,8 @@ export default function App() {
   const fetchGoals = async () => {
     const fetched = await GetGoals();
     setGoals(fetched || []);
+    const hist = await GetWeeklyHistory();
+    setWeeklyHistory(hist || []);
   };
 
   const fetchBooks = async () => {
@@ -180,15 +183,15 @@ export default function App() {
     }));
   };
 
-  const openBook = (book: Book) => {
+  const openBook = (book: Book, targetPage?: number) => {
     setActiveTab('library');
     updateZoom(1.0);
     setOutline([]);
     setIsOutlineVisible(false);
     setNumPages(null);
-    const targetPage = book.currentPage || 1;
-    setCurrentPage(targetPage);
-    scrollPageRef.current = targetPage;
+    const pageToOpen = targetPage || book.currentPage || 1;
+    setCurrentPage(pageToOpen);
+    scrollPageRef.current = pageToOpen;
     setReadingBook(book);
   };
 
@@ -258,6 +261,16 @@ export default function App() {
 
   const handleAddGoal = async (title: string) => {
     const updated = await AddGoal(title);
+    setGoals(updated || []);
+  };
+
+  const handleAddGoalWithBook = async (title: string, bookId: string, bookTitle: string, sections: GoalSection[]) => {
+    const updated = await AddGoalWithBook(title, bookId, bookTitle, sections);
+    setGoals(updated || []);
+  };
+
+  const handleUpdateGoalWithBook = async (id: string, title: string, bookId: string, bookTitle: string, sections: GoalSection[]) => {
+    const updated = await UpdateGoalWithBook(id, title, bookId, bookTitle, sections);
     setGoals(updated || []);
   };
 
@@ -496,6 +509,7 @@ export default function App() {
         activeTab={activeTab}
         isReaderActive={Boolean(readingBook)}
         goals={goals}
+        books={books}
         isAddingGoal={isAddingGoal}
         newGoalTitle={newGoalTitle}
         editingGoalId={editingGoalId}
@@ -509,6 +523,9 @@ export default function App() {
         onUpdateGoal={handleUpdateGoal}
         onDeleteGoal={handleDeleteGoal}
         onAddGoal={handleAddGoal}
+        onAddGoalWithBook={handleAddGoalWithBook}
+        onUpdateGoalWithBook={handleUpdateGoalWithBook}
+        onOpenBook={openBook}
       />
       <main className="main-content">
         {!readingBook ? (
@@ -524,6 +541,7 @@ export default function App() {
               currentMonthYear={currentMonthYear}
               currentDays={currentDays}
               goals={goals}
+              weeklyHistory={weeklyHistory}
               books={books}
               getBookCover={getBookCover}
               isAddingGoal={isAddingGoal}
@@ -542,6 +560,8 @@ export default function App() {
               onUpdateGoal={handleUpdateGoal}
               onDeleteGoal={handleDeleteGoal}
               onAddGoal={handleAddGoal}
+              onAddGoalWithBook={handleAddGoalWithBook}
+              onUpdateGoalWithBook={handleUpdateGoalWithBook}
               onUpdateGoalDayTime={handleUpdateGoalDayTime}
               onAddCalendarGoal={handleAddCalendarGoal}
               onOpenBook={openBook}

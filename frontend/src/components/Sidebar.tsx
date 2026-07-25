@@ -1,11 +1,14 @@
 import { useState, useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
-import { Book as BookIcon, LayoutList, Calendar, BookOpen, Settings, HelpCircle, Plus, Trash2, Check } from 'lucide-react';
-import type { Goal } from '../types';
+import { Book as BookIcon, LayoutList, Calendar, BookOpen, Settings, HelpCircle, Plus, Trash2, Check, Edit2 } from 'lucide-react';
+import type { Goal, Book, GoalSection } from '../types';
+import ProgressRing from './ProgressRing';
+import GoalModal from './GoalModal';
 
 type SidebarProps = {
   activeTab: 'library' | 'planner' | 'settings';
   isReaderActive: boolean;
   goals: Goal[];
+  books?: Book[];
   isAddingGoal: boolean;
   newGoalTitle: string;
   editingGoalId: string | null;
@@ -19,12 +22,16 @@ type SidebarProps = {
   onUpdateGoal: (id: string, title: string) => Promise<void>;
   onDeleteGoal: (id: string) => Promise<void>;
   onAddGoal: (title: string) => Promise<void>;
+  onAddGoalWithBook?: (title: string, bookId: string, bookTitle: string, sections: GoalSection[]) => Promise<void>;
+  onUpdateGoalWithBook?: (id: string, title: string, bookId: string, bookTitle: string, sections: GoalSection[]) => Promise<void>;
+  onOpenBook?: (book: Book, targetPage?: number) => void;
 };
 
 export default function Sidebar({
   activeTab,
   isReaderActive,
   goals,
+  books = [],
   isAddingGoal,
   newGoalTitle,
   editingGoalId,
@@ -37,9 +44,14 @@ export default function Sidebar({
   onToggleGoal,
   onUpdateGoal,
   onDeleteGoal,
-  onAddGoal
+  onAddGoal,
+  onAddGoalWithBook,
+  onUpdateGoalWithBook,
+  onOpenBook,
 }: SidebarProps) {
   const [width, setWidth] = useState(240);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingGoalModal, setEditingGoalModal] = useState<Goal | null>(null);
   const isResizing = useRef(false);
 
   useEffect(() => {
@@ -132,8 +144,12 @@ export default function Sidebar({
               WEEKLY OBJECTIVES
             </span>
             <button
-              onClick={() => setIsAddingGoal(true)}
+              onClick={() => {
+                setEditingGoalModal(null);
+                setIsModalOpen(true);
+              }}
               style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px' }}
+              title="Add weekly objective"
             >
               <Plus size={14} />
             </button>
@@ -141,102 +157,94 @@ export default function Sidebar({
 
           <div className="objectives-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {goals.filter(g => g.dayIndex === undefined || g.dayIndex === -1).map(goal => (
-              <div key={goal.id} className={`objective-item ${goal.completed ? 'completed' : ''}`} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                <div
+              <div key={goal.id} className={`objective-item ${goal.completed ? 'completed' : ''}`} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', padding: '4px 0' }}>
+                <ProgressRing
+                  progress={goal.progress || 0}
+                  completed={goal.completed}
+                  size={20}
+                  strokeWidth={2.5}
                   onClick={async () => {
                     await onToggleGoal(goal.id);
                   }}
-                  style={{
-                    width: '16px',
-                    height: '16px',
-                    borderRadius: '4px',
-                    border: goal.completed ? 'none' : '1px solid var(--card-border)',
-                    background: goal.completed ? 'var(--accent)' : 'transparent',
-                    marginTop: '2px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0
-                  }}
-                >
-                  {goal.completed && <Check size={12} color="white" />}
-                </div>
+                />
 
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px', overflow: 'hidden' }}>
-                  {editingGoalId === goal.id ? (
-                    <input
-                      autoFocus
-                      value={editingGoalTitle}
-                      onChange={e => setEditingGoalTitle(e.target.value)}
-                      onKeyDown={async (e) => {
-                        if (e.key === 'Enter' && editingGoalTitle.trim()) {
-                          await onUpdateGoal(goal.id, editingGoalTitle.trim());
-                          setEditingGoalId(null);
-                        } else if (e.key === 'Escape') {
-                          setEditingGoalId(null);
-                        }
-                      }}
-                      onBlur={async () => {
-                        if (editingGoalTitle.trim() && editingGoalTitle.trim() !== goal.title) {
-                          await onUpdateGoal(goal.id, editingGoalTitle.trim());
-                        }
-                        setEditingGoalId(null);
-                      }}
-                      style={{ width: '100%', background: 'transparent', border: '1px solid var(--accent)', color: 'var(--text-primary)', outline: 'none', borderRadius: '4px', padding: '2px 4px', fontSize: '13px' }}
-                    />
-                  ) : (
-                    <span
-                      onDoubleClick={() => {
-                        setEditingGoalId(goal.id);
-                        setEditingGoalTitle(goal.title);
-                      }}
-                      style={{ fontSize: '13px', fontWeight: 500, color: goal.completed ? 'var(--text-secondary)' : 'var(--text-primary)', textDecoration: goal.completed ? 'line-through' : 'none', cursor: 'text', lineHeight: '1.4' }}
-                    >
-                      {goal.title}
+                <div
+                  style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden', cursor: goal.bookId ? 'pointer' : 'default' }}
+                  onClick={() => {
+                    if (goal.bookId && onOpenBook) {
+                      const bk = books.find(b => b.id === goal.bookId);
+                      if (bk) {
+                        const targetPage = goal.sections && goal.sections.length > 0 ? goal.sections[0].startPage : bk.currentPage || 1;
+                        onOpenBook(bk, targetPage);
+                      }
+                    }
+                  }}
+                  title={goal.bookId ? 'Click to open linked book and section' : undefined}
+                >
+                  <span
+                    onDoubleClick={() => {
+                      setEditingGoalModal(goal);
+                      setIsModalOpen(true);
+                    }}
+                    style={{ fontSize: '13px', fontWeight: 500, color: goal.completed ? 'var(--text-secondary)' : 'var(--text-primary)', textDecoration: goal.completed ? 'line-through' : 'none', lineHeight: '1.4' }}
+                  >
+                    {goal.title}
+                  </span>
+                  {goal.bookTitle && (
+                    <span style={{ fontSize: '11px', color: 'var(--accent, #68c7d6)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 500 }}>
+                      📖 {goal.bookTitle} {goal.sections && goal.sections.length > 0 ? `(${goal.sections.length} sec)` : ''}
                     </span>
                   )}
                 </div>
 
-                <button
-                  onClick={async () => {
-                    await onDeleteGoal(goal.id);
-                  }}
-                  className="goal-delete-btn"
-                  style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '2px' }}
-                >
-                  <Trash2 size={12} />
-                </button>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  <button
+                    onClick={() => {
+                      setEditingGoalModal(goal);
+                      setIsModalOpen(true);
+                    }}
+                    className="goal-delete-btn"
+                    style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '2px' }}
+                    title="Edit objective"
+                  >
+                    <Edit2 size={12} />
+                  </button>
+                  <button
+                    onClick={async () => {
+                      await onDeleteGoal(goal.id);
+                    }}
+                    className="goal-delete-btn"
+                    style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '2px' }}
+                    title="Delete objective"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
               </div>
             ))}
-
-            {isAddingGoal && (
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                <div style={{ width: '16px', height: '16px', borderRadius: '4px', border: '1px solid var(--card-border)', flexShrink: 0 }}></div>
-                <input
-                  autoFocus
-                  value={newGoalTitle}
-                  onChange={e => setNewGoalTitle(e.target.value)}
-                  onKeyDown={async (e) => {
-                    if (e.key === 'Enter' && newGoalTitle.trim()) {
-                      await onAddGoal(newGoalTitle.trim());
-                      setNewGoalTitle('');
-                      setIsAddingGoal(false);
-                    } else if (e.key === 'Escape') {
-                      setIsAddingGoal(false);
-                      setNewGoalTitle('');
-                    }
-                  }}
-                  onBlur={() => {
-                    setIsAddingGoal(false);
-                    setNewGoalTitle('');
-                  }}
-                  placeholder="New objective..."
-                  style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '13px', padding: '2px 0' }}
-                />
-              </div>
-            )}
           </div>
+
+          <GoalModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            books={books}
+            initialGoal={editingGoalModal}
+            onSave={async (title, bookId, bookTitle, sections) => {
+              if (editingGoalModal) {
+                if (onUpdateGoalWithBook) {
+                  await onUpdateGoalWithBook(editingGoalModal.id, title, bookId, bookTitle, sections);
+                } else {
+                  await onUpdateGoal(editingGoalModal.id, title);
+                }
+              } else {
+                if (onAddGoalWithBook) {
+                  await onAddGoalWithBook(title, bookId, bookTitle, sections);
+                } else {
+                  await onAddGoal(title);
+                }
+              }
+            }}
+          />
         </div>
       )}
 

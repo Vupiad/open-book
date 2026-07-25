@@ -18,6 +18,10 @@ export function AddGoal(arg1) {
   return window['go']['main']['App']['AddGoal'](arg1);
 }
 
+export function AddGoalWithBook(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['AddGoalWithBook'](arg1, arg2, arg3, arg4);
+}
+
 export function DeleteBook(arg1) {
   return window['go']['main']['App']['DeleteBook'](arg1);
 }
@@ -50,6 +54,10 @@ export function GetGoals() {
   return window['go']['main']['App']['GetGoals']();
 }
 
+export function GetWeeklyHistory() {
+  return window['go']['main']['App']['GetWeeklyHistory']();
+}
+
 export function RenameCategory(arg1, arg2) {
   return window['go']['main']['App']['RenameCategory'](arg1, arg2);
 }
@@ -80,6 +88,10 @@ export function UpdateGoal(arg1, arg2) {
 
 export function UpdateGoalDayTime(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateGoalDayTime'](arg1, arg2, arg3);
+}
+
+export function UpdateGoalWithBook(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['UpdateGoalWithBook'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function UpdateProgress(arg1, arg2, arg3) {

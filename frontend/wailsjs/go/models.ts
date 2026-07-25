@@ -30,12 +30,32 @@ export namespace main {
 	        this.lastRead = source["lastRead"];
 	    }
 	}
+	export class GoalSection {
+	    title: string;
+	    startPage: number;
+	    endPage: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new GoalSection(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.title = source["title"];
+	        this.startPage = source["startPage"];
+	        this.endPage = source["endPage"];
+	    }
+	}
 	export class Goal {
 	    id: string;
 	    title: string;
 	    completed: boolean;
 	    dayIndex: number;
 	    time: string;
+	    bookId: string;
+	    bookTitle: string;
+	    sections: GoalSection[];
+	    progress: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new Goal(source);
@@ -48,7 +68,68 @@ export namespace main {
 	        this.completed = source["completed"];
 	        this.dayIndex = source["dayIndex"];
 	        this.time = source["time"];
+	        this.bookId = source["bookId"];
+	        this.bookTitle = source["bookTitle"];
+	        this.sections = this.convertValues(source["sections"], GoalSection);
+	        this.progress = source["progress"];
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	export class WeeklyHistory {
+	    id: string;
+	    weekStart: string;
+	    weekEnd: string;
+	    goals: Goal[];
+	    progress: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new WeeklyHistory(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.weekStart = source["weekStart"];
+	        this.weekEnd = source["weekEnd"];
+	        this.goals = this.convertValues(source["goals"], Goal);
+	        this.progress = source["progress"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }

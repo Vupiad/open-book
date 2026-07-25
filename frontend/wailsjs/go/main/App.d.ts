@@ -10,6 +10,8 @@ export function AddCategory(arg1:string):Promise<Array<string>>;
 
 export function AddGoal(arg1:string):Promise<Array<main.Goal>>;
 
+export function AddGoalWithBook(arg1:string,arg2:string,arg3:string,arg4:Array<main.GoalSection>):Promise<Array<main.Goal>>;
+
 export function DeleteBook(arg1:string):Promise<void>;
 
 export function DeleteCategory(arg1:string):Promise<Array<string>>;
@@ -26,6 +28,8 @@ export function GetCategories():Promise<Array<string>>;
 
 export function GetGoals():Promise<Array<main.Goal>>;
 
+export function GetWeeklyHistory():Promise<Array<main.WeeklyHistory>>;
+
 export function RenameCategory(arg1:string,arg2:string):Promise<Array<string>>;
 
 export function SaveCoverData(arg1:string,arg2:string):Promise<void>;
@@ -41,5 +45,7 @@ export function Translate(arg1:string,arg2:string):Promise<string>;
 export function UpdateGoal(arg1:string,arg2:string):Promise<Array<main.Goal>>;
 
 export function UpdateGoalDayTime(arg1:string,arg2:number,arg3:string):Promise<Array<main.Goal>>;
+
+export function UpdateGoalWithBook(arg1:string,arg2:string,arg3:string,arg4:string,arg5:Array<main.GoalSection>):Promise<Array<main.Goal>>;
 
 export function UpdateProgress(arg1:string,arg2:number,arg3:number):Promise<void>;

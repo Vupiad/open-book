@@ -29,17 +29,36 @@ type Book struct {
 	LastRead    int64  `json:"lastRead,omitempty"`
 }
 
-type Goal struct {
-	ID        string `json:"id"`
+type GoalSection struct {
 	Title     string `json:"title"`
-	Completed bool   `json:"completed"`
-	DayIndex  int    `json:"dayIndex"` // -1 for none
-	Time      string `json:"time"`
+	StartPage int    `json:"startPage"`
+	EndPage   int    `json:"endPage"`
+}
+
+type Goal struct {
+	ID        string        `json:"id"`
+	Title     string        `json:"title"`
+	Completed bool          `json:"completed"`
+	DayIndex  int           `json:"dayIndex"` // -1 for none
+	Time      string        `json:"time"`
+	BookID    string        `json:"bookId"`
+	BookTitle string        `json:"bookTitle"`
+	Sections  []GoalSection `json:"sections"`
+	Progress  int           `json:"progress"` // 0-100 percentage
+}
+
+type WeeklyHistory struct {
+	ID        string `json:"id"`
+	WeekStart string `json:"weekStart"`
+	WeekEnd   string `json:"weekEnd"`
+	Goals     []Goal `json:"goals"`
+	Progress  int    `json:"progress"` // average completion percentage
 }
 
 type GoalsData struct {
-	WeekStart time.Time `json:"weekStart"`
-	Goals     []Goal    `json:"goals"`
+	WeekStart time.Time       `json:"weekStart"`
+	Goals     []Goal          `json:"goals"`
+	History   []WeeklyHistory `json:"history"`
 }
 
 // App struct
@@ -58,7 +77,8 @@ func NewApp() *App {
 		books:      make([]Book, 0),
 		categories: make([]string, 0),
 		goalsData: GoalsData{
-			Goals: make([]Goal, 0),
+			Goals:   make([]Goal, 0),
+			History: make([]WeeklyHistory, 0),
 		},
 		activity: make(map[string]int),
 	}
@@ -220,7 +240,27 @@ func (a *App) loadGoals() {
 	currentWeekStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, offset)
 
 	if a.goalsData.WeekStart.Before(currentWeekStart) {
-		// New week, reset goals
+		// New week, archive current goals if any
+		if len(a.goalsData.Goals) > 0 {
+			totalProg := 0
+			for _, g := range a.goalsData.Goals {
+				if g.Completed {
+					totalProg += 100
+				} else {
+					totalProg += g.Progress
+				}
+			}
+			avgProg := totalProg / len(a.goalsData.Goals)
+			weekEnd := a.goalsData.WeekStart.AddDate(0, 0, 6).Format("2006-01-02")
+			histEntry := WeeklyHistory{
+				ID:        fmt.Sprintf("%d", time.Now().UnixNano()),
+				WeekStart: a.goalsData.WeekStart.Format("2006-01-02"),
+				WeekEnd:   weekEnd,
+				Goals:     a.goalsData.Goals,
+				Progress:  avgProg,
+			}
+			a.goalsData.History = append([]WeeklyHistory{histEntry}, a.goalsData.History...)
+		}
 		a.goalsData.WeekStart = currentWeekStart
 		a.goalsData.Goals = make([]Goal, 0)
 		a.saveGoals()
@@ -243,6 +283,11 @@ func (a *App) GetGoals() []Goal {
 	return a.goalsData.Goals
 }
 
+// GetWeeklyHistory returns past weekly goal history
+func (a *App) GetWeeklyHistory() []WeeklyHistory {
+	return a.goalsData.History
+}
+
 func (a *App) AddGoal(title string) []Goal {
 	goal := Goal{
 		ID:        uuid.New().String(),
@@ -252,6 +297,36 @@ func (a *App) AddGoal(title string) []Goal {
 	}
 	a.goalsData.Goals = append(a.goalsData.Goals, goal)
 	a.saveGoals()
+	return a.goalsData.Goals
+}
+
+func (a *App) AddGoalWithBook(title string, bookId string, bookTitle string, sections []GoalSection) []Goal {
+	goal := Goal{
+		ID:        uuid.New().String(),
+		Title:     title,
+		Completed: false,
+		DayIndex:  -1,
+		BookID:    bookId,
+		BookTitle: bookTitle,
+		Sections:  sections,
+		Progress:  0,
+	}
+	a.goalsData.Goals = append(a.goalsData.Goals, goal)
+	a.saveGoals()
+	return a.goalsData.Goals
+}
+
+func (a *App) UpdateGoalWithBook(id string, title string, bookId string, bookTitle string, sections []GoalSection) []Goal {
+	for i, g := range a.goalsData.Goals {
+		if g.ID == id {
+			a.goalsData.Goals[i].Title = title
+			a.goalsData.Goals[i].BookID = bookId
+			a.goalsData.Goals[i].BookTitle = bookTitle
+			a.goalsData.Goals[i].Sections = sections
+			a.saveGoals()
+			break
+		}
+	}
 	return a.goalsData.Goals
 }
 
@@ -295,6 +370,11 @@ func (a *App) ToggleGoal(id string) []Goal {
 	for i, g := range a.goalsData.Goals {
 		if g.ID == id {
 			a.goalsData.Goals[i].Completed = !g.Completed
+			if a.goalsData.Goals[i].Completed {
+				a.goalsData.Goals[i].Progress = 100
+			} else {
+				a.goalsData.Goals[i].Progress = 0
+			}
 			a.saveGoals()
 			break
 		}
@@ -509,6 +589,48 @@ func (a *App) UpdateProgress(bookId string, currentPage int, totalPages int) err
 			a.books[i].TotalPages = totalPages
 			a.books[i].LastRead = time.Now().Unix()
 			a.saveBooks()
+
+			// Update associated goals progress
+			goalsUpdated := false
+			for idx, g := range a.goalsData.Goals {
+				if g.BookID == bookId && len(g.Sections) > 0 {
+					totalSecPages := 0
+					readSecPages := 0
+					for _, sec := range g.Sections {
+						sp := sec.StartPage
+						ep := sec.EndPage
+						if ep < sp {
+							ep = sp
+						}
+						secLen := ep - sp + 1
+						if secLen <= 0 {
+							secLen = 1
+						}
+						totalSecPages += secLen
+
+						if currentPage >= ep {
+							readSecPages += secLen
+						} else if currentPage > sp {
+							readSecPages += currentPage - sp + 1
+						}
+					}
+					if totalSecPages > 0 {
+						gProg := int(float64(readSecPages) / float64(totalSecPages) * 100)
+						if gProg > 100 {
+							gProg = 100
+						}
+						if a.goalsData.Goals[idx].Progress != gProg || a.goalsData.Goals[idx].Completed != (gProg >= 100) {
+							a.goalsData.Goals[idx].Progress = gProg
+							a.goalsData.Goals[idx].Completed = (gProg >= 100)
+							goalsUpdated = true
+						}
+					}
+				}
+			}
+			if goalsUpdated {
+				a.saveGoals()
+			}
+
 			return nil
 		}
 	}
