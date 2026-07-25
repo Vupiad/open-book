@@ -98,6 +98,8 @@ export default function App() {
     return [...baseCategories, ...customList];
   }, [books, categories]);
 
+  const pendingTargetPageRef = useRef<number | null>(null);
+  const [pageJumpRequest, setPageJumpRequest] = useState<number | null>(null);
   const scrollPageRef = useRef(1);
   const scrollTimeout = useRef<any>(null);
   const translateTimeoutRef = useRef<number | null>(null);
@@ -188,8 +190,17 @@ export default function App() {
     updateZoom(1.0);
     setOutline([]);
     setIsOutlineVisible(false);
-    setNumPages(null);
+    if (book.id !== readingBook?.id) {
+      setNumPages(null);
+    }
     const pageToOpen = targetPage || book.currentPage || 1;
+    if (targetPage) {
+      pendingTargetPageRef.current = targetPage;
+      setPageJumpRequest(targetPage);
+    } else {
+      pendingTargetPageRef.current = null;
+      setPageJumpRequest(null);
+    }
     setCurrentPage(pageToOpen);
     scrollPageRef.current = pageToOpen;
     setReadingBook(book);
@@ -308,9 +319,13 @@ export default function App() {
     setNumPages(pdfDoc.numPages);
     loadOutline(pdfDoc);
     if (readingBook) {
-      const pageToLoad = readingBook.currentPage || 1;
+      const pageToLoad = pendingTargetPageRef.current !== null ? pendingTargetPageRef.current : (readingBook.currentPage || 1);
+      pendingTargetPageRef.current = null;
       setCurrentPage(pageToLoad);
       scrollPageRef.current = pageToLoad;
+      if (pageToLoad) {
+        setPageJumpRequest(pageToLoad);
+      }
     }
   };
 
@@ -501,6 +516,7 @@ export default function App() {
   const handleOutlineJump = (pageNumber: number) => {
     scrollPageRef.current = pageNumber;
     setCurrentPage(pageNumber);
+    setPageJumpRequest(pageNumber);
   };
 
   return (
@@ -620,6 +636,8 @@ export default function App() {
               onSourceTextChange={handleSourceTextChange}
               onSpeakSource={() => speakText(selectedText, navigator.language)}
               onSpeakTarget={() => speakText(translatedText, speechLangMap[targetLang] ?? navigator.language)}
+              pageJumpRequest={pageJumpRequest}
+              onClearPageJump={() => setPageJumpRequest(null)}
             />
         )}
       </main>

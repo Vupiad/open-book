@@ -70,32 +70,42 @@ export default function GoalModal({
 
         if (!isMounted) return;
 
+        let mainItems = outlineItems || [];
+        // If top level has only 1 or 2 wrapper items (like "Cover" / "Book Title"), and one of them has 3+ sub-items, drop down into those sub-items as the main chapters!
+        while (mainItems.length <= 2) {
+          const wrapper = mainItems.find(it => it.items && it.items.length >= 3);
+          if (wrapper) {
+            mainItems = wrapper.items;
+          } else {
+            break;
+          }
+        }
+
         const flat: { title: string; page: number }[] = [];
-        const traverse = async (items: any[]) => {
-          for (const item of items) {
-            let page: number | undefined;
-            if (item.dest) {
-              try {
-                const resolvedDest = typeof item.dest === 'string' ? await doc.getDestination(item.dest) : item.dest;
-                if (resolvedDest?.[0]) {
-                  const pageIndex = await doc.getPageIndex(resolvedDest[0]);
-                  page = pageIndex + 1;
-                }
-              } catch (e) {
-                console.warn('Error resolving dest:', e);
+        const getPageNumber = async (item: any): Promise<number | undefined> => {
+          if (item.dest) {
+            try {
+              const resolvedDest = typeof item.dest === 'string' ? await doc.getDestination(item.dest) : item.dest;
+              if (resolvedDest?.[0]) {
+                const pageIndex = await doc.getPageIndex(resolvedDest[0]);
+                return pageIndex + 1;
               }
-            }
-            if (page !== undefined && page > 0) {
-              flat.push({ title: item.title || 'Section', page });
-            }
-            if (item.items && item.items.length > 0) {
-              await traverse(item.items);
+            } catch (e) {
+              console.warn('Error resolving dest:', e);
             }
           }
+          // If the chapter heading itself has no direct destination, check its first child
+          if (item.items && item.items.length > 0) {
+            return await getPageNumber(item.items[0]);
+          }
+          return undefined;
         };
 
-        if (outlineItems && outlineItems.length > 0) {
-          await traverse(outlineItems);
+        for (const item of mainItems) {
+          const page = await getPageNumber(item);
+          if (page !== undefined && page > 0) {
+            flat.push({ title: item.title || 'Section', page });
+          }
         }
 
         if (!isMounted) return;

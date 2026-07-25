@@ -32,6 +32,8 @@ type ReaderViewProps = {
   onSourceTextChange: (text: string) => void;
   onSpeakSource: () => void;
   onSpeakTarget: () => void;
+  pageJumpRequest?: number | null;
+  onClearPageJump?: () => void;
 };
 
 export default function ReaderView({
@@ -59,7 +61,9 @@ export default function ReaderView({
   onSetTargetLang,
   onSourceTextChange,
   onSpeakSource,
-  onSpeakTarget
+  onSpeakTarget,
+  pageJumpRequest,
+  onClearPageJump
 }: ReaderViewProps) {
   const [expandedOutline, setExpandedOutline] = useState<Set<string>>(() => new Set());
   const [scrollParent, setScrollParent] = useState<HTMLElement | undefined>(undefined);
@@ -79,6 +83,16 @@ export default function ReaderView({
       return () => clearTimeout(timer);
     }
   }, [numPages, readingBook.id]);
+
+  useEffect(() => {
+    if (pageJumpRequest !== null && pageJumpRequest !== undefined && virtuosoRef.current && numPages) {
+      const timer = setTimeout(() => {
+        virtuosoRef.current?.scrollToIndex({ index: Math.max(0, pageJumpRequest - 1), align: 'start' });
+        onClearPageJump?.();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [pageJumpRequest, numPages]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
