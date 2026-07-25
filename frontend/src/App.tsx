@@ -211,6 +211,7 @@ export default function App() {
     setReadingBook(null);
     setNumPages(null);
     fetchGoals();
+    fetchBooks();
   };
 
   const handleAddBook = async () => {
@@ -350,8 +351,10 @@ export default function App() {
         if (readingBook) {
           UpdateProgress(readingBook.id, pageNum, numPages).then(() => {
             fetchGoals();
+            fetchBooks();
           });
           setBooks(prev => prev.map(b => b.id === readingBook.id ? { ...b, currentPage: pageNum, totalPages: numPages, progress: Math.round((pageNum / numPages) * 100) } : b));
+          setReadingBook(prev => prev ? { ...prev, currentPage: pageNum, totalPages: numPages, progress: Math.round((pageNum / numPages) * 100) } : null);
         }
       }, 1000);
     }
@@ -630,6 +633,7 @@ export default function App() {
                 setIsOutlineVisible(false);
                 setIsSidebarVisible(true);
                 fetchGoals();
+                fetchBooks();
               }}
               onToggleSidebar={() => setIsSidebarVisible(prev => !prev)}
               onToggleOutline={() => setIsOutlineVisible(prev => !prev)}

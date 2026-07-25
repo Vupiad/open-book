@@ -174,7 +174,7 @@ export default function Sidebar({
                     if (goal.bookId && onOpenBook) {
                       const bk = books.find(b => b.id === goal.bookId);
                       if (bk) {
-                        const targetPage = goal.sections && goal.sections.length > 0 ? goal.sections[0].startPage : bk.currentPage || 1;
+                        const targetPage = (goal.sections && goal.sections.length > 0 && (!bk.currentPage || bk.currentPage < goal.sections[0].startPage)) ? goal.sections[0].startPage : (bk.currentPage || 1);
                         onOpenBook(bk, targetPage);
                       }
                     }
