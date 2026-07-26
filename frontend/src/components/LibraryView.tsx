@@ -87,9 +87,6 @@ export default function LibraryView({
       </header>
 
       <div className="shelf-section">
-        <h1 className="desk-title">The Reading Desk</h1>
-        <p className="desk-subtitle">Pick up exactly where you left off in your private study.</p>
-
         <div className="categories" style={{ flexWrap: 'wrap', gap: '8px' }}>
           <button className={`category-btn ${activeCategory === 'All Works' ? 'active' : ''}`} onClick={() => onSelectCategory('All Works')}>All Works</button>
           {categories.map(cat => (
