@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GetActivityLog } from '../../wailsjs/go/main/App';
+import { GetActivityLog } from '../services/api';
 
 type DayData = { date: string, level: number, pages: number };
 

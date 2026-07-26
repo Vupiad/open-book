@@ -875,3 +875,220 @@
   transform: translateY(-4px);
   box-shadow: 0 8px 24px rgba(0,0,0,0.08);
 }
+
+/* =========================================
+   Mobile & Responsive Adjustments
+   ========================================= */
+
+.mobile-toggle-btn {
+  display: none;
+}
+
+.mobile-sidebar-close-btn {
+  display: none;
+}
+
+.mobile-sidebar-backdrop {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* Sidebar Drawer on Mobile */
+  .sidebar {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px !important;
+    min-width: 280px !important;
+    max-width: 85vw !important;
+    z-index: 1000 !important;
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.4);
+    transform: translateX(0);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s;
+  }
+
+  .app-container.sidebar-hidden .sidebar {
+    display: flex !important;
+    transform: translateX(-110%);
+    box-shadow: none !important;
+  }
+
+  .sidebar-resizer {
+    display: none !important;
+  }
+
+  .mobile-sidebar-close-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  .mobile-sidebar-close-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-primary);
+  }
+
+  /* Backdrop */
+  .mobile-sidebar-backdrop {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    z-index: 999;
+    backdrop-filter: blur(2px);
+    animation: fadeIn 0.2s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Floating Menu Button */
+  .mobile-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 52px;
+    height: 52px;
+    border-radius: 26px;
+    background-color: var(--accent);
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    z-index: 900;
+    cursor: pointer;
+    transition: transform 0.2s ease, background-color 0.2s ease;
+  }
+
+  .mobile-toggle-btn:active {
+    transform: scale(0.95);
+  }
+
+  /* Library Grid */
+  .book-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+    gap: 16px !important;
+    padding-bottom: 70px !important;
+  }
+
+  /* Planner View */
+  .planner-view {
+    padding-bottom: 70px !important;
+  }
+
+  /* Reader View Topbar & Sidebar */
+  .reader-topbar {
+    padding: 2px 6px !important;
+    flex-wrap: nowrap !important;
+    gap: 6px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .reader-topbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .back-btn {
+    font-size: 13px !important;
+    padding: 4px 6px !important;
+  }
+
+  .progress-text-reader {
+    font-size: 13px !important;
+  }
+
+  .show-on-mobile-inline {
+    display: inline !important;
+  }
+
+  .reader-container {
+    padding: 12px 4px !important;
+  }
+
+  .reader-outline {
+    width: 80vw !important;
+    max-width: 300px !important;
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.4) !important;
+    z-index: 20 !important;
+  }
+
+  .translator-sidebar {
+    position: fixed !important;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 85vw !important;
+    max-width: 320px !important;
+    z-index: 20 !important;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.4) !important;
+  }
+
+  .exit-fullscreen-btn {
+    top: 8px;
+    right: 8px;
+  }
+}
+
+/* =========================================
+   Fullscreen Reading Focus Mode
+   ========================================= */
+
+body.reader-fullscreen-mode .reader-topbar {
+  display: none !important;
+}
+
+body.reader-fullscreen-mode .mobile-toggle-btn {
+  display: none !important;
+}
+
+body.reader-fullscreen-mode .reader-layout {
+  height: 100vh !important;
+}
+
+.exit-fullscreen-btn {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  opacity: 0.15;
+  transition: opacity 0.2s ease, background-color 0.2s ease, color 0.2s ease;
+}
+
+.exit-fullscreen-btn:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+}

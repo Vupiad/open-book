@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, type UIEvent, type ComponentProps } from 'react';
-import { GetBooks, SelectAndAddBook, AddBookFromPath, UpdateProgress, GetCategories, AddCategory, SetBookCategory, SaveCoverData, DeleteCategory, DeleteBook, Translate, GetGoals, AddGoal, UpdateGoal, DeleteGoal, ToggleGoal, UpdateGoalDayTime, AddCalendarGoal, RenameCategory, AddGoalWithBook, UpdateGoalWithBook, GetWeeklyHistory } from '../wailsjs/go/main/App';
-import { OnFileDrop, OnFileDropOff } from '../wailsjs/runtime/runtime';
+import { Menu } from 'lucide-react';
+import { GetBooks, SelectAndAddBook, AddBookFromPath, UpdateProgress, GetCategories, AddCategory, SetBookCategory, SaveCoverData, DeleteCategory, DeleteBook, Translate, GetGoals, AddGoal, UpdateGoal, DeleteGoal, ToggleGoal, UpdateGoalDayTime, AddCalendarGoal, RenameCategory, AddGoalWithBook, UpdateGoalWithBook, GetWeeklyHistory, onFileDrop as OnFileDrop, onFileDropOff as OnFileDropOff } from './services/api';
 import type { Book, Goal, GoalSection, WeeklyHistory, OutlineEntry, UserSettings } from './types';
 import Sidebar from './components/Sidebar';
 import SettingsView from './components/SettingsView';
@@ -60,7 +60,9 @@ export default function App() {
       accent: '#68c7d6',
     });
   };
-  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  const [isSidebarVisible, setIsSidebarVisible] = useState(() => {
+    return !(typeof window !== 'undefined' && window.innerWidth <= 768);
+  });
   const [activeCategory, setActiveCategory] = useState('All Works');
   const [categories, setCategories] = useState<string[]>([]);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
@@ -204,6 +206,9 @@ export default function App() {
     setCurrentPage(pageToOpen);
     scrollPageRef.current = pageToOpen;
     setReadingBook(book);
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+      setIsSidebarVisible(false);
+    }
   };
 
   const handleNavigate = (tab: ActiveTab) => {
@@ -212,6 +217,9 @@ export default function App() {
     setNumPages(null);
     fetchGoals();
     fetchBooks();
+    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+      setIsSidebarVisible(false);
+    }
   };
 
   const handleAddBook = async () => {
@@ -527,6 +535,12 @@ export default function App() {
 
   return (
     <div className={`app-container ${!isSidebarVisible ? 'sidebar-hidden' : ''}`}>
+      {isSidebarVisible && (
+        <div
+          className="mobile-sidebar-backdrop"
+          onClick={() => setIsSidebarVisible(false)}
+        />
+      )}
       <Sidebar
         activeTab={activeTab}
         isReaderActive={Boolean(readingBook)}
@@ -548,8 +562,17 @@ export default function App() {
         onAddGoalWithBook={handleAddGoalWithBook}
         onUpdateGoalWithBook={handleUpdateGoalWithBook}
         onOpenBook={openBook}
+        onCloseMobile={() => setIsSidebarVisible(false)}
       />
       <main className="main-content">
+        <button
+          className="mobile-toggle-btn"
+          onClick={() => setIsSidebarVisible(prev => !prev)}
+          title="Toggle Navigation"
+          aria-label="Toggle Navigation"
+        >
+          <Menu size={24} />
+        </button>
         {!readingBook ? (
           activeTab === 'settings' ? (
             <SettingsView

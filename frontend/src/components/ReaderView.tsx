@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type RefObject, type UIEvent, type ComponentProps } from 'react';
-import { ChevronLeft, Languages, ArrowDown, Sparkles, X, Volume2, List } from 'lucide-react';
+import { ChevronLeft, Languages, ArrowDown, Sparkles, X, Volume2, List, Maximize2, Minimize2 } from 'lucide-react';
 import { Document, Page } from '../pdf';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import type { Book, OutlineEntry } from '../types';
@@ -67,7 +67,48 @@ export default function ReaderView({
 }: ReaderViewProps) {
   const [expandedOutline, setExpandedOutline] = useState<Set<string>>(() => new Set());
   const [scrollParent, setScrollParent] = useState<HTMLElement | undefined>(undefined);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const virtuosoRef = useRef<VirtuosoHandle>(null);
+
+  const toggleFullScreen = () => {
+    const nextState = !isFullScreen;
+    setIsFullScreen(nextState);
+    if (typeof document !== 'undefined') {
+      if (nextState) {
+        document.body.classList.add('reader-fullscreen-mode');
+        try {
+          if (document.documentElement.requestFullscreen) {
+            document.documentElement.requestFullscreen();
+          }
+        } catch (e) {
+          console.warn('requestFullscreen failed or unsupported', e);
+        }
+      } else {
+        document.body.classList.remove('reader-fullscreen-mode');
+        try {
+          if (document.fullscreenElement && document.exitFullscreen) {
+            document.exitFullscreen();
+          }
+        } catch (e) {
+          console.warn('exitFullscreen failed', e);
+        }
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement && isFullScreen) {
+        setIsFullScreen(false);
+        document.body.classList.remove('reader-fullscreen-mode');
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.body.classList.remove('reader-fullscreen-mode');
+    };
+  }, [isFullScreen]);
 
   useEffect(() => {
     if (readerContainerRef.current) {
@@ -211,40 +252,59 @@ export default function ReaderView({
   );
 
   return (
-    <div className="reader-view">
+    <div className={`reader-view ${isFullScreen ? 'fullscreen-active' : ''}`}>
+      {isFullScreen && (
+        <button
+          className="exit-fullscreen-btn"
+          onClick={toggleFullScreen}
+          title="Exit Full Screen (Esc)"
+          aria-label="Exit Full Screen"
+        >
+          <Minimize2 size={16} />
+        </button>
+      )}
       <header className="reader-topbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button
             className={`icon-btn ${isOutlineVisible ? 'active' : ''}`}
             onClick={onToggleOutline}
             style={{ color: isOutlineVisible ? 'var(--accent)' : 'var(--text-secondary)' }}
             title="Contents"
           >
-            <List size={20} />
+            <List size={18} />
           </button>
 
-          <button className="back-btn" onClick={onBack}>
-            <ChevronLeft size={20} /> Back to Library
+          <button className="back-btn" onClick={onBack} title="Back to Library">
+            <ChevronLeft size={18} /> <span className="hide-on-mobile">Back to Library</span>
           </button>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
           <span className="progress-text-reader" style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>
-            Page {currentPage} of {numPages || '--'}
+            <span className="hide-on-mobile">Page </span>{currentPage}<span className="hide-on-mobile"> of {numPages || '--'}</span>
+            <span className="show-on-mobile-inline" style={{ display: 'none' }}> / {numPages || '--'}</span>
           </span>
           {numPages && <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>· {Math.round((currentPage / numPages) * 100)}%</span>}
         </div>
         <div className="reader-controls">
           <button
+            className="icon-btn"
+            onClick={toggleFullScreen}
+            style={{ color: 'var(--text-secondary)', marginRight: '8px' }}
+            title="Full Screen Mode"
+          >
+            <Maximize2 size={18} />
+          </button>
+          <button
             className={`icon-btn ${isTranslatorVisible ? 'active' : ''}`}
             onClick={onToggleTranslator}
-            style={{ color: isTranslatorVisible ? 'var(--accent)' : 'var(--text-secondary)', marginRight: '16px' }}
+            style={{ color: isTranslatorVisible ? 'var(--accent)' : 'var(--text-secondary)', marginRight: '8px' }}
             title="Translator"
           >
-            <Languages size={20} />
+            <Languages size={18} />
           </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-sidebar)', padding: '2px 12px', borderRadius: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-sidebar)', padding: '2px 8px', borderRadius: '16px' }}>
             <button onClick={onZoomOut} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--text-secondary)' }}>-</button>
-            <span style={{ fontSize: '13px', fontWeight: 500, minWidth: '40px', textAlign: 'center', color: 'var(--text-primary)' }}>{Math.round(zoom * 100)}%</span>
+            <span style={{ fontSize: '12px', fontWeight: 500, minWidth: '36px', textAlign: 'center', color: 'var(--text-primary)' }}>{Math.round(zoom * 100)}%</span>
             <button onClick={onZoomIn} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--text-secondary)' }}>+</button>
           </div>
         </div>

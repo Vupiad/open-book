@@ -99,6 +99,8 @@ func (a *App) startup(ctx context.Context) {
 		a.loadGoals()
 		a.loadActivity()
 	}
+
+	go a.startWebServer(3456)
 }
 
 func (a *App) loadActivity() {

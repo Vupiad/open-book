@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
-import { Book as BookIcon, LayoutList, Calendar, BookOpen, Settings, HelpCircle, Plus, Trash2, Check, Edit2 } from 'lucide-react';
-import type { Goal, Book, GoalSection } from '../types';
+import { Book as BookIcon, LayoutList, Calendar, BookOpen, Settings, HelpCircle, Plus, Trash2, Check, Edit2, Smartphone, Copy, X } from 'lucide-react';
+import type { Goal, Book, GoalSection, ServerInfo } from '../types';
+import { GetServerInfo, isWails } from '../services/api';
 import ProgressRing from './ProgressRing';
 import GoalModal from './GoalModal';
 
@@ -25,6 +26,7 @@ type SidebarProps = {
   onAddGoalWithBook?: (title: string, bookId: string, bookTitle: string, sections: GoalSection[]) => Promise<void>;
   onUpdateGoalWithBook?: (id: string, title: string, bookId: string, bookTitle: string, sections: GoalSection[]) => Promise<void>;
   onOpenBook?: (book: Book, targetPage?: number) => void;
+  onCloseMobile?: () => void;
 };
 
 export default function Sidebar({
@@ -48,11 +50,20 @@ export default function Sidebar({
   onAddGoalWithBook,
   onUpdateGoalWithBook,
   onOpenBook,
+  onCloseMobile,
 }: SidebarProps) {
   const [width, setWidth] = useState(240);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGoalModal, setEditingGoalModal] = useState<Goal | null>(null);
+  const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
+  const [copiedUrl, setCopiedUrl] = useState(false);
   const isResizing = useRef(false);
+
+  useEffect(() => {
+    if (isWails()) {
+      GetServerInfo().then(info => setServerInfo(info)).catch(err => console.error(err));
+    }
+  }, []);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -84,6 +95,7 @@ export default function Sidebar({
   return (
     <aside className="sidebar" style={{ width: `${width}px`, minWidth: `${width}px`, position: 'relative' }}>
       <div 
+        className="sidebar-resizer"
         onMouseDown={handleMouseDown}
         style={{
           width: '6px',
@@ -96,10 +108,22 @@ export default function Sidebar({
         }}
       />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowX: 'hidden', minWidth: 0 }}>
-        <div className="sidebar-header">
-          <h2 className="title">The Archive</h2>
-        <span className="subtitle">PRIVATE COLLECTION</span>
-      </div>
+        <div className="sidebar-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h2 className="title">The Archive</h2>
+            <span className="subtitle">PRIVATE COLLECTION</span>
+          </div>
+          {onCloseMobile && (
+            <button
+              className="mobile-sidebar-close-btn"
+              onClick={onCloseMobile}
+              title="Close Menu"
+              aria-label="Close Menu"
+            >
+              <X size={20} />
+            </button>
+          )}
+        </div>
 
       <nav className="sidebar-nav">
         <a
@@ -245,6 +269,45 @@ export default function Sidebar({
               }
             }}
           />
+        </div>
+      )}
+
+      {serverInfo && (
+        <div style={{ padding: '0 16px', marginBottom: '12px' }}>
+          <div
+            onClick={() => {
+              navigator.clipboard.writeText(serverInfo.url);
+              setCopiedUrl(true);
+              setTimeout(() => setCopiedUrl(false), 2000);
+            }}
+            style={{
+              background: 'var(--bg-card, rgba(0,0,0,0.04))',
+              border: '1px solid var(--border-color, rgba(0,0,0,0.08))',
+              borderRadius: '8px',
+              padding: '10px 12px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              transition: 'all 0.2s ease',
+            }}
+            title="Click to copy link for phone/tablet access"
+          >
+            <Smartphone size={18} style={{ color: 'var(--accent-color, #3b82f6)', flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
+              <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Phone Access
+              </div>
+              <div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {serverInfo.url}
+              </div>
+            </div>
+            {copiedUrl ? (
+              <Check size={16} style={{ color: '#10b981', flexShrink: 0 }} />
+            ) : (
+              <Copy size={16} style={{ color: 'var(--text-secondary)', flexShrink: 0, opacity: 0.7 }} />
+            )}
+          </div>
         </div>
       )}
 
