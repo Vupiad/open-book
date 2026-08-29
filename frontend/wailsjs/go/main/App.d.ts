@@ -28,8 +28,6 @@ export function GetCategories():Promise<Array<string>>;
 
 export function GetGoals():Promise<Array<main.Goal>>;
 
-export function GetServerInfo():Promise<main.ServerInfo>;
-
 export function GetWeeklyHistory():Promise<Array<main.WeeklyHistory>>;
 
 export function RenameCategory(arg1:string,arg2:string):Promise<Array<string>>;

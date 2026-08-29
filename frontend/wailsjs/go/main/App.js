@@ -54,10 +54,6 @@ export function GetGoals() {
   return window['go']['main']['App']['GetGoals']();
 }
 
-export function GetServerInfo() {
-  return window['go']['main']['App']['GetServerInfo']();
-}
-
 export function GetWeeklyHistory() {
   return window['go']['main']['App']['GetWeeklyHistory']();
 }

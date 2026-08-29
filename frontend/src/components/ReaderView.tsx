@@ -3,6 +3,7 @@ import { ChevronLeft, Languages, ArrowDown, Sparkles, X, Volume2, List, Maximize
 import { Document, Page } from '../pdf';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import type { Book, OutlineEntry } from '../types';
+import WindowControls from './WindowControls';
 
 type OnDocumentLoadSuccess = NonNullable<ComponentProps<typeof Document>['onLoadSuccess']>;
 
@@ -34,6 +35,7 @@ type ReaderViewProps = {
   onSpeakTarget: () => void;
   pageJumpRequest?: number | null;
   onClearPageJump?: () => void;
+  virtuosoRef: RefObject<VirtuosoHandle>;
 };
 
 export default function ReaderView({
@@ -63,12 +65,12 @@ export default function ReaderView({
   onSpeakSource,
   onSpeakTarget,
   pageJumpRequest,
-  onClearPageJump
+  onClearPageJump,
+  virtuosoRef
 }: ReaderViewProps) {
   const [expandedOutline, setExpandedOutline] = useState<Set<string>>(() => new Set());
   const [scrollParent, setScrollParent] = useState<HTMLElement | undefined>(undefined);
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const virtuosoRef = useRef<VirtuosoHandle>(null);
 
   const toggleFullScreen = () => {
     const nextState = !isFullScreen;
@@ -307,6 +309,7 @@ export default function ReaderView({
             <span style={{ fontSize: '12px', fontWeight: 500, minWidth: '36px', textAlign: 'center', color: 'var(--text-primary)' }}>{Math.round(zoom * 100)}%</span>
             <button onClick={onZoomIn} style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '18px', color: 'var(--text-secondary)' }}>+</button>
           </div>
+          <WindowControls />
         </div>
       </header>
       <div className="reader-layout" style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
@@ -341,7 +344,8 @@ export default function ReaderView({
                   useWindowScroll={false}
                   customScrollParent={scrollParent}
                   totalCount={numPages}
-                  overscan={10}
+                  overscan={{ main: 2500, reverse: 2500 }}
+                  defaultItemHeight={866}
                   itemContent={(index) => {
                     const pageNumber = index + 1;
                     return (

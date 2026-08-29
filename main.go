@@ -47,6 +47,7 @@ func main() {
 		Title:  "The Archive",
 		Width:  1280,
 		Height: 800,
+		Frameless: true,
 		AssetServer: &assetserver.Options{
 			Assets:  assets,
 			Handler: NewFileLoader(app),

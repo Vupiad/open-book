@@ -100,7 +100,6 @@ func (a *App) startup(ctx context.Context) {
 		a.loadActivity()
 	}
 
-	go a.startWebServer(3456)
 }
 
 func (a *App) loadActivity() {
@@ -697,7 +696,7 @@ func (a *App) Translate(text string, targetLang string) (string, error) {
 		tl = "en"
 	}
 
-	apiURL := fmt.Sprintf("https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=%s&dt=t&q=%s", tl, url.QueryEscape(text))
+	apiURL := fmt.Sprintf("https://translate.googleapis.com/translate_a/single?client=dict-chrome-ex&sl=auto&tl=%s&dt=t&q=%s", tl, url.QueryEscape(text))
 
 	resp, err := http.Get(apiURL)
 	if err != nil {

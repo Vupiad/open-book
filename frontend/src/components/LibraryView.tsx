@@ -2,6 +2,7 @@ import { useState, type Dispatch, type SetStateAction } from 'react';
 import { Plus, Search, Filter, Bell, X, Trash2 } from 'lucide-react';
 import { Document, Page } from '../pdf';
 import type { Book } from '../types';
+import WindowControls from './WindowControls';
 
 type LibraryViewProps = {
   books: Book[];
@@ -83,6 +84,7 @@ export default function LibraryView({
             <Plus size={18} />
             Add Book
           </button>
+          <WindowControls />
         </div>
       </header>
 

@@ -4,7 +4,7 @@ export type Book = main.Book;
 export type Goal = main.Goal;
 export type GoalSection = main.GoalSection;
 export type WeeklyHistory = main.WeeklyHistory;
-export type ServerInfo = main.ServerInfo;
+
 
 export type OutlineEntry = {
   title: string;

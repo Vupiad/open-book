@@ -36,6 +36,8 @@ type PlannerViewProps = {
   onOpenBook: (book: Book, targetPage?: number) => void;
 };
 
+import WindowControls from './WindowControls';
+
 export default function PlannerView({
   currentWeekFormatted,
   currentMonthYear,
@@ -93,17 +95,20 @@ export default function PlannerView({
   }, [weeklyObjectives]);
 
   return (
-    <div className="planner-view" style={{ padding: '40px', height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+    <div className="planner-view" style={{ height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+      <header className="topbar">
         <div>
           <h1 className="desk-title">Activity Dashboard</h1>
           <p className="desk-subtitle" style={{ margin: 0 }}>
             Visualizing your reading progress, objectives, and habits.
           </p>
         </div>
+        <div className="topbar-actions">
+          <WindowControls />
+        </div>
       </header>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', flex: 1 }}>
+      <div style={{ padding: '0 40px 40px', display: 'flex', flexDirection: 'column', gap: '32px', flex: 1 }}>
         <Heatmap />
 
         <div style={{ display: 'grid', gridTemplateColumns: currentBook ? '1fr 340px' : '1fr', gap: '24px' }}>

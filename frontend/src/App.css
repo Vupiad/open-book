@@ -180,7 +180,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px 40px;
+  padding: 8px 150px 8px 24px;
 }
 
 .search-bar {
@@ -439,7 +439,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 2px 8px;
+  padding: 2px 150px 2px 8px;
   background-color: var(--bg-sidebar);
   border-bottom: 1px solid var(--card-border);
   transition: background-color 0.3s ease;
@@ -1091,4 +1091,47 @@ body.reader-fullscreen-mode .reader-layout {
   opacity: 1;
   background: rgba(0, 0, 0, 0.4);
   color: #ffffff;
+}
+
+/* Wails Draggable Titlebar Config */
+.topbar, .reader-topbar, .sidebar-drag-region {
+  --wails-draggable: drag;
+  user-select: none;
+}
+.search-bar, .topbar-actions, .reader-controls, .icon-btn, .add-btn, .back-btn, .window-controls {
+  --wails-draggable: no-drag;
+}
+
+/* Window Controls (VS Code Style) */
+.window-controls {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  height: 36px;
+  z-index: 1000;
+}
+.window-control-btn {
+  background: transparent;
+  border: none;
+  width: 46px;
+  height: 100%;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-primary);
+  opacity: 0.8;
+  transition: background-color 0.15s, color 0.15s, opacity 0.15s;
+}
+.window-control-btn:hover {
+  background: var(--nav-hover);
+  opacity: 1;
+}
+.window-control-btn.close:hover {
+  background: #e81123;
+  color: white;
+  opacity: 1;
 }

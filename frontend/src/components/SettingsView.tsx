@@ -26,36 +26,29 @@ const ACCENT_PRESETS = [
   { name: 'Warm Amber', hex: '#f59e0b' },
 ];
 
+import WindowControls from './WindowControls';
+
 export default function SettingsView({ settings, onUpdateSettings, onResetSettings }: SettingsViewProps) {
   return (
-    <div className="settings-view" style={{ padding: '40px', height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+    <div className="settings-view" style={{ height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+      <header className="topbar">
         <div>
           <h1 className="desk-title">Settings & Customization</h1>
           <p className="desk-subtitle" style={{ margin: 0 }}>
             Personalize your theme mode and accent color preferences.
           </p>
         </div>
-        <button
-          onClick={onResetSettings}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 16px',
-            borderRadius: '12px',
-            border: '1px solid var(--card-border)',
-            background: 'var(--card-bg)',
-            color: 'var(--text-secondary)',
-            cursor: 'pointer',
-            fontSize: '13px',
-            fontWeight: 500,
-            transition: 'all 0.2s ease',
-          }}
-          title="Reset to recommended defaults"
-        >
-          <RotateCcw size={16} /> Reset to Defaults
-        </button>
+        <div className="topbar-actions">
+          <button
+            onClick={onResetSettings}
+            className="icon-btn"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}
+            title="Reset to recommended defaults"
+          >
+            <RotateCcw size={16} /> Reset
+          </button>
+          <WindowControls />
+        </div>
       </header>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '32px', maxWidth: '840px', paddingBottom: '60px' }}>

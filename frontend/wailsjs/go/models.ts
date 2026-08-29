@@ -93,22 +93,6 @@ export namespace main {
 		}
 	}
 	
-	export class ServerInfo {
-	    ip: string;
-	    port: number;
-	    url: string;
-	
-	    static createFrom(source: any = {}) {
-	        return new ServerInfo(source);
-	    }
-	
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.ip = source["ip"];
-	        this.port = source["port"];
-	        this.url = source["url"];
-	    }
-	}
 	export class WeeklyHistory {
 	    id: string;
 	    weekStart: string;

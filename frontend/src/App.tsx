@@ -32,6 +32,7 @@ export default function App() {
   const [zoom, setZoom] = useState(1.0);
   const zoomRef = useRef(1.0);
   const gestureZoomRef = useRef(1.0);
+  const virtuosoRef = useRef<any>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [settings, setSettings] = useState<UserSettings>(() => {
     const systemPrefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -104,6 +105,7 @@ export default function App() {
   const [pageJumpRequest, setPageJumpRequest] = useState<number | null>(null);
   const scrollPageRef = useRef(1);
   const scrollTimeout = useRef<any>(null);
+  const scrollIgnoreTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const translateTimeoutRef = useRef<number | null>(null);
   const readerContainerRef = useRef<HTMLDivElement>(null);
   const coverCache = useRef<Map<string, string>>(new Map());
@@ -160,9 +162,40 @@ export default function App() {
   };
 
   const updateZoom = (nextZoom: number) => {
+    const container = readerContainerRef.current;
+    
+    let targetScrollTop = 0;
+    
+    if (container) {
+      const prevZoom = zoomRef.current;
+      const ratio = nextZoom / prevZoom;
+      const centerY = container.clientHeight / 2;
+
+      targetScrollTop = (container.scrollTop + centerY) * ratio - centerY;
+    }
+
     zoomRef.current = nextZoom;
     gestureZoomRef.current = nextZoom;
     setZoom(nextZoom);
+
+    if (virtuosoRef.current) {
+      // Use requestAnimationFrame to let React commit the DOM changes.
+      // Then force the exact mathematical center point to stay fixed.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          virtuosoRef.current?.scrollTo({ top: targetScrollTop });
+          // Force it again after a slight delay in case Virtuoso's ResizeObserver kicks in late
+          setTimeout(() => {
+            virtuosoRef.current?.scrollTo({ top: targetScrollTop });
+          }, 50);
+        });
+      });
+    }
+
+    if (scrollIgnoreTimeout.current) clearTimeout(scrollIgnoreTimeout.current);
+    scrollIgnoreTimeout.current = setTimeout(() => {
+      scrollIgnoreTimeout.current = null;
+    }, 500);
   };
 
   const buildOutline = async (items: PdfOutlineItem[] | null, pdfDoc: PdfDocument): Promise<OutlineEntry[]> => {
@@ -340,10 +373,13 @@ export default function App() {
   };
 
   const handleScroll = (e: UIEvent<HTMLDivElement>) => {
+    if (scrollIgnoreTimeout.current) return;
     const target = e.currentTarget;
     if (!numPages || target.scrollHeight <= target.clientHeight) return;
 
-    const pageRenderHeight = target.scrollHeight / numPages;
+    // Use mathematical precision: 842px base height * zoom + 24px bottom margin
+    // Must use zoomRef.current instead of zoom to avoid stale closure during rapid zoom changes
+    const pageRenderHeight = 842 * zoomRef.current + 24; 
     const currentScrollPos = target.scrollTop + (target.clientHeight / 2);
     let pageNum = Math.floor(currentScrollPos / pageRenderHeight) + 1;
 
@@ -659,10 +695,11 @@ export default function App() {
                 fetchBooks();
               }}
               onToggleSidebar={() => setIsSidebarVisible(prev => !prev)}
-              onToggleOutline={() => setIsOutlineVisible(prev => !prev)}
-              onToggleTranslator={() => setIsTranslatorVisible(prev => !prev)}
+              onToggleOutline={() => setIsOutlineVisible(!isOutlineVisible)}
+              onToggleTranslator={() => setIsTranslatorVisible(!isTranslatorVisible)}
               onZoomOut={() => updateZoom(Math.max(0.2, zoom / 1.25))}
               onZoomIn={() => updateZoom(Math.min(4, zoom * 1.25))}
+              virtuosoRef={virtuosoRef}
               onSetTargetLang={setTargetLang}
               onSourceTextChange={handleSourceTextChange}
               onSpeakSource={() => speakText(selectedText, navigator.language)}
